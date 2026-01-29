@@ -1,0 +1,3 @@
+from constructor.bot import run_constructor_bot
+
+run_constructor_bot("8329219902:AAHvSgn9xa6NsyIb4GcNA9kvXP2_Bj2fu1U")

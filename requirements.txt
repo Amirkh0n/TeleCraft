@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+
+python-telegram-bot==22.*
+
+SQLAlchemy>=2.0
+aiosqlite
+
+pydantic
+python-dotenv
