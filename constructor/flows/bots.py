@@ -49,12 +49,14 @@ async def show_user_bots(update: Update, context: ContextTypes.DEFAULT_TYPE, bac
     )
 
 
-async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id=None):
+async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
 
     data = update.callback_query.data
-    if bot_id==None:
+    try:
         bot_id = int(data.split("_")[1])
+    except:
+        bot_id = context.user_data.get("current_bot_id")
 
     # botni contextda saqlaymiz
     context.user_data["current_bot_id"] = bot_id
