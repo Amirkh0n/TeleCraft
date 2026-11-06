@@ -1,5 +1,8 @@
+from typing import Optional
+from pydantic import BaseModel
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
+from core.config import settings
 from core.logger import get_logger
 
 logger = get_logger("middleware")

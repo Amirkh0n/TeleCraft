@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, String, Integer, DateTime, Index, Float
+from sqlalchemy import BigInteger, String, Integer, DateTime, Index, Float, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from sqlalchemy.sql import func
@@ -10,7 +10,10 @@ class AnalyticsEvent(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     
-    bot_id: Mapped[int] = mapped_column(index=True)
+    bot_id: Mapped[int] = mapped_column(
+        ForeignKey("bots.id"),
+        index=True
+    )
     
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     
@@ -22,7 +25,7 @@ class AnalyticsEvent(Base):
     
     action_taken: Mapped[str] = mapped_column(String(255), nullable=True)
     
-    extra_data: Mapped[dict] = mapped_column()
+    extra_data: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -43,7 +46,10 @@ class BotStats(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     
-    bot_id: Mapped[int] = mapped_column(index=True, unique=True)
+    bot_id: Mapped[int] = mapped_column(
+        ForeignKey("bots.id"),
+        index=True
+    )
     
     total_users: Mapped[int] = mapped_column(Integer, default=0)
     
@@ -65,7 +71,10 @@ class UserStats(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     
-    bot_id: Mapped[int] = mapped_column(index=True)
+    bot_id: Mapped[int] = mapped_column(
+        ForeignKey("bots.id"),
+        index=True
+    )
     
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     
@@ -85,7 +94,7 @@ class UserStats(Base):
         index=True
     )
     
-    bot = relationship("Bot")
+    bot = relationship("Bot", backref="user_stats")
     
     __table_args__ = (
         Index("ix_bot_user_stats", "bot_id", "user_id", unique=True),
@@ -97,7 +106,10 @@ class BotMetrics(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     
-    bot_id: Mapped[int] = mapped_column(index=True)
+    bot_id: Mapped[int] = mapped_column(
+        ForeignKey("bots.id"),
+        index=True
+    )
     
     metric_type: Mapped[str] = mapped_column(String(50), nullable=False)
     

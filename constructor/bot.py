@@ -7,8 +7,9 @@ from telegram.ext import (
 )
 from constructor.handlers import start, add_bot_click, cancel_action
 from constructor.flows.bots import open_bot, back_to_bots
-from constructor.flows.menus import show_menus, add_menu_click, delete_menu_confirm, handle_delete_menu
-from constructor.flows.buttons import show_buttons, add_button_click, delete_button_confirm, handle_delete_button
+from constructor.flows.menus import show_menus, add_menu_click
+from constructor.flows.buttons import show_buttons, add_button_click
+from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click

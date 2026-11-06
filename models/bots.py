@@ -31,5 +31,15 @@ class Bot(Base):
         default=True
     )
 
+    webhook_url: Mapped[str] = mapped_column(
+        String(500),
+        nullable=True
+    )
+
+    webhook_set: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False
+    )
+
     # Relationship
     owner = relationship("User", backref="bots")

@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     WEBHOOK_HOST: str = Field(default="0.0.0.0", description="Webhook host")
     WEBHOOK_PORT: int = Field(default=8000, description="Webhook port")
     WEBHOOK_PATH: str = Field(default="/webhook/{token}", description="Webhook path")
+    PUBLIC_BASE_URL: str = Field(
+        default="https://your-app.onrender.com",
+        description="Public base URL of the webhook server (used for auto setWebhook)"
+    )
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
     LOG_FORMAT: str = Field(default="json", description="Log format (json or text)")
     MAX_CONNECTIONS: int = Field(default=20, description="Maximum database connections")
@@ -34,20 +38,6 @@ class Settings(BaseSettings):
             return []
         return [int(id.strip()) for id in self.ADMIN_IDS.split(",") if id.strip()]
 
-    @property
-    def bot_tokens_list(self) -> list[str]:
-        """Convert comma-separated string to list"""
-        if not self.BOT_TOKENS:
-            return []
-        return [token.strip() for token in self.BOT_TOKENS.split(",") if token.strip()]
-
-    @property
-    def admin_ids_list(self) -> list[int]:
-        """Convert comma-separated string to list of integers"""
-        if not self.ADMIN_IDS:
-            return []
-        return [int(id.strip()) for id in self.ADMIN_IDS.split(",") if id.strip()]
-    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

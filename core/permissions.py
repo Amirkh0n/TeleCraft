@@ -2,6 +2,7 @@ from sqlalchemy import select
 from core.database import AsyncSessionLocal
 from models.users import User
 from core.logger import get_logger
+from core.config import settings
 from typing import Optional
 
 logger = get_logger("permissions")

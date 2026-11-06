@@ -30,3 +30,21 @@ AsyncSessionLocal = async_sessionmaker(
 async def init_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _run_light_migrations()
+
+
+async def _run_light_migrations():
+    """Add missing columns to existing tables (lightweight SQLite/PG migration)"""
+    from sqlalchemy import text
+
+    migrations = [
+        "ALTER TABLE bots ADD COLUMN webhook_url VARCHAR(500)",
+        "ALTER TABLE bots ADD COLUMN webhook_set BOOLEAN DEFAULT 0",
+    ]
+    async with engine.begin() as conn:
+        for statement in migrations:
+            try:
+                await conn.execute(text(statement))
+            except Exception:
+                # Column already exists — ok
+                pass
