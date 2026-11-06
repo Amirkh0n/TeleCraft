@@ -142,7 +142,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # 2. Webhook URL qurish va avtomatik setWebhook
         webhook_url = build_webhook_url(validated_token)
-        webhook_ok = await set_webhook(validated_token, webhook_url)
+        webhook_ok = False
 
         # 3. DB ga saqlash
         async with AsyncSessionLocal() as session:
@@ -165,8 +165,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if bot:
                 bot.name = bot_name
                 bot.is_active = True
-                bot.webhook_url = webhook_url if webhook_ok else bot.webhook_url
-                bot.webhook_set = webhook_ok or bot.webhook_set
+                bot.webhook_url = webhook_url
+                bot.webhook_set = False
                 logger.info("Bot re-added: %s (id=%s)", bot.name, bot.id)
             else:
                 bot = Bot(
@@ -174,8 +174,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     name=bot_name,
                     token=validated_token,
                     is_active=True,
-                    webhook_url=webhook_url if webhook_ok else None,
-                    webhook_set=webhook_ok,
+                    webhook_url=webhook_url,
+                    webhook_set=False,
                 )
                 session.add(bot)
                 await session.flush()
@@ -183,6 +183,10 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await session.commit()
             bot_id = bot.id
+
+        # Bot DB'da mavjud bo'lgandan keyin webhook o'rnatiladi.
+        # Telegram webhook o'rnatilishi bilan darhol update yuborishi mumkin.
+        webhook_ok = await set_webhook(validated_token, webhook_url)
 
         context.user_data["current_bot_id"] = bot_id
         context.user_data["state"] = None
