@@ -104,7 +104,7 @@ def render_home_page(stats: dict) -> str:
             <tr>
                 <td>🤖 {b.name}</td>
                 <td>{status_badge}</td>
-                <td>{'🟢 Ishlayapti' if b.is_active else '🔴 O\'chirilgan'}</td>
+                <td>{'🟢 Ishlayapti' if b.is_active else '🔴 O`chirilgan'}</td>
             </tr>"""
         bots_table = f"""
         <table>
@@ -112,7 +112,7 @@ def render_home_page(stats: dict) -> str:
             <tbody>{bot_rows}</tbody>
         </table>"""
     else:
-        bots_table = '<p class="empty">📭 Hozircha webhook ulangan botlar yo\'q. Constructor bot orqali bot qo\'shing.</p>'
+        bots_table = '<p class="empty">📭 Hozircha webhook ulangan botlar yo`q. Constructor bot orqali bot qo`shing.</p>'
 
     return f"""<!DOCTYPE html>
 <html lang="uz">
