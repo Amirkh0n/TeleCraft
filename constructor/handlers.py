@@ -17,7 +17,7 @@ logger = get_logger("handlers")
 def build_webhook_url(token: str) -> str:
     """Build webhook URL for a user bot"""
     base = settings.PUBLIC_BASE_URL.rstrip("/")
-    return f"{base}/webhook/{token}"
+    return f"{base}/webhooks/{token}"
 
 
 async def show_user_bots(update: Update, context: ContextTypes.DEFAULT_TYPE, back=False):

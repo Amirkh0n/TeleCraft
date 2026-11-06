@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, JSONResponse
 from sqlalchemy import select, func
 
 from core.database import AsyncSessionLocal, init_models
@@ -11,6 +11,8 @@ from core.config import settings
 from models.bots import Bot
 from models.users import User
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
+from telegram import Update
+from constructor.bot import build_constructor_application
 
 app = FastAPI(
     title="TeleCraft Constructor API",
@@ -43,16 +45,24 @@ request_duration = Histogram(
 
 # Register rate limiting middleware
 app.middleware("http")(rate_limit_middleware)
+constructor_application = None
 
 
 @app.on_event("startup")
 async def on_startup():
     await init_models()
+    global constructor_application
+    constructor_application = build_constructor_application(settings.TELEGRAM_TOKEN)
+    await constructor_application.initialize()
+    await constructor_application.start()
     logger.info("TeleCraft Constructor API started")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    if constructor_application:
+        await constructor_application.stop()
+        await constructor_application.shutdown()
     logger.info("TeleCraft Constructor API shutting down")
 
 
@@ -189,7 +199,8 @@ def render_home_page(stats: dict) -> str:
         <div class="footer">
             📊 Metrics: <code>GET {base_url}/metrics</code><br>
             ❤️ Health: <code>GET {base_url}/health</code><br>
-            🔔 Webhook: <code>POST {base_url}/webhook/&lt;bot_token&gt;</code>
+            🔔 Main webhook: <code>POST {base_url}/webhook</code><br>
+            🤖 Child webhook: <code>POST {base_url}/webhooks/&lt;bot_token&gt;</code>
         </div>
     </div>
 </body>
@@ -227,6 +238,20 @@ async def health_check():
 @app.get("/metrics")
 async def metrics():
     return Response(content=generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.post("/webhook")
+async def constructor_webhook(request: Request):
+    """Constructor bot uchun webhook endpoint."""
+    payload = await request.json()
+    logger.info("Constructor bot webhook received: update_id=%s", payload.get("update_id"))
+    try:
+        update = Update.de_json(payload, constructor_application.bot)
+        await constructor_application.process_update(update)
+        return {"ok": True}
+    except Exception as e:
+        logger.error("Constructor webhook error: %s", e, exc_info=True)
+        return JSONResponse({"ok": False, "error": "Internal server error"}, status_code=500)
 
 
 app.include_router(webhook_router)

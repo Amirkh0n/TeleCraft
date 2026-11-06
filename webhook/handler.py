@@ -4,14 +4,16 @@ from sqlalchemy import select
 from core.database import AsyncSessionLocal
 from models.bots import Bot
 from engine.router import route_update
+from core.logger import logger
 
 router = APIRouter()
 
 
-@router.post("/webhook/{token}")
+@router.post("/webhooks/{token}")
 async def telegram_webhook(token: str, request: Request):
     update = await request.json()
 
+    # Avval bazadan qidirib ko'ramiz
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(Bot).where(Bot.token == token, Bot.is_active == True)
