@@ -103,7 +103,7 @@ async def add_bot_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.reply_text(
             "🔑 BotFather'dan olgan tokenni yuboring:"
         )
-        logger.info("User started adding a new bot", user_id=update.effective_user.id)
+        logger.info("User started adding a new bot: user_id=%s", update.effective_user.id)
 
     except Exception as e:
         logger.error(f"Error in add_bot_click: {e}", exc_info=True)
@@ -129,8 +129,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 1. Tokenni Telegram API orqali tekshirish va bot nomini olish
         bot_name = None
         try:
-            tg_check = TgBot(validated_token)
-            me = await tg_check.get_me()
+            async with TgBot(validated_token) as tg_check:
+                me = await tg_check.get_me()
             bot_name = me.first_name or me.username or f"Bot_{user_id}"
         except Exception as e:
             logger.warning(f"Could not verify token via Telegram API: {e}")
@@ -167,7 +167,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 bot.is_active = True
                 bot.webhook_url = webhook_url if webhook_ok else bot.webhook_url
                 bot.webhook_set = webhook_ok or bot.webhook_set
-                logger.info(f"Bot re-added: {bot.name}", bot_id=bot.id)
+                logger.info("Bot re-added: %s (id=%s)", bot.name, bot.id)
             else:
                 bot = Bot(
                     owner_id=user.id,
@@ -179,7 +179,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 session.add(bot)
                 await session.flush()
-                logger.info(f"New bot created: {bot.name}", bot_id=bot.id)
+                logger.info("New bot created: %s (id=%s)", bot.name, bot.id)
 
             await session.commit()
             bot_id = bot.id

@@ -12,12 +12,12 @@ logger = get_logger("webhook_manager")
 async def set_webhook(token: str, webhook_url: str) -> bool:
     """Set webhook for a bot"""
     try:
-        tg_bot = TgBot(token)
-        result = await tg_bot.set_webhook(
-            url=webhook_url,
-            max_connections=100,
-            allowed_updates=['message', 'callback_query']
-        )
+        async with TgBot(token) as tg_bot:
+            result = await tg_bot.set_webhook(
+                url=webhook_url,
+                max_connections=100,
+                allowed_updates=['message', 'callback_query']
+            )
 
         if result:
             logger.info(f"Webhook set successfully for bot with token: {token[:20]}...")
@@ -55,8 +55,8 @@ async def set_webhook(token: str, webhook_url: str) -> bool:
 async def delete_webhook(token: str) -> bool:
     """Delete webhook for a bot"""
     try:
-        tg_bot = TgBot(token)
-        result = await tg_bot.delete_webhook()
+        async with TgBot(token) as tg_bot:
+            result = await tg_bot.delete_webhook()
 
         if result:
             logger.info(f"Webhook deleted for bot with token: {token[:20]}...")
@@ -89,8 +89,8 @@ async def delete_webhook(token: str) -> bool:
 async def get_webhook_status(token: str) -> dict:
     """Get webhook status for a bot"""
     try:
-        tg_bot = TgBot(token)
-        webhook_info = await tg_bot.get_webhook_info()
+        async with TgBot(token) as tg_bot:
+            webhook_info = await tg_bot.get_webhook_info()
 
         return {
             "has_webhook": bool(webhook_info.url),
