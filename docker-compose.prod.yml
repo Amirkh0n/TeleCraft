@@ -1,0 +1,74 @@
+---
+name: TeleCraft Production
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: telecraft:latest
+    container_name: telecraft_api
+    ports:
+      - "${WEBHOOK_PORT:-8000}:${WEBHOOK_PORT:-8000}"
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - BOT_TOKENS=${BOT_TOKENS}
+      - DATABASE_URL=${DATABASE_URL}
+      - WEBHOOK_HOST=${WEBHOOK_HOST}
+      - WEBHOOK_PORT=${WEBHOOK_PORT}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - DEBUG=${DEBUG:-False}
+      - TESTING=${TESTING:-False}
+      - MAX_CONNECTIONS=${MAX_CONNECTIONS:-20}
+      - CONNECTION_POOL_SIZE=${CONNECTION_POOL_SIZE:-10}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - ADMIN_IDS=${ADMIN_IDS}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - telecraft-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Optional: PostgreSQL for production
+  database:
+    image: postgres:15-alpine
+    container_name: telecraft_db
+    environment:
+      - POSTGRES_USER=${DB_USER:-telecraft}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-telecraft_password}
+      - POSTGRES_DB=${DB_NAME:-telecraft}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-telecraft}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - telecraft-network
+
+networks:
+  telecraft-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -6,7 +6,7 @@ from constructor.flows.actions import handle_action_text, handle_action_link, ha
 
 
 async def messages(update, context):
-    state = context.user_data['state']
+    state = context.user_data.get('state')
 
     if state == states.WAITING_FOR_TOKEN:
         await handle_token(update, context)

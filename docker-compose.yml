@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  telecraft:
+    build: .
+    container_name: telecraft_constructor
+    ports:
+      - "8000:8000"
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - BOT_TOKENS=${BOT_TOKENS}
+      - DATABASE_URL=${DATABASE_URL}
+      - WEBHOOK_HOST=${WEBHOOK_HOST}
+      - WEBHOOK_PORT=8000
+      - LOG_LEVEL=INFO
+      - DEBUG=${DEBUG:-False}
+      - TESTING=${TESTING:-False}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
