@@ -30,7 +30,7 @@ async def delete_menu_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
             "Diqqat: bu amal bekor qilib bo'lmaydi! Menudagi barcha tugmalar ham o'chiriladi.",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
-        logger.info("Menu delete confirmation requested", menu_id=menu_id)
+        logger.info("Menu delete confirmation requested: menu_id=%s", menu_id)
 
     except Exception as e:
         logger.error(f"Error in delete_menu_confirm: {e}", exc_info=True)
@@ -69,8 +69,13 @@ async def handle_delete_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             if menu:
                 session.delete(menu)
                 await session.commit()
-                logger.info("Menu deleted", menu_id=menu_id)
-                await update.callback_query.message.edit_text("✅ Menyu muvaffaqiyatli o'chirildi!")
+                logger.info("Menu deleted: menu_id=%s", menu_id)
+                await update.callback_query.message.edit_text(
+                    "✅ Menu o‘chirildi.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📂 Menyular", callback_data="menus")]
+                    ]),
+                )
             else:
                 await update.callback_query.message.edit_text("❌ Menyu topilmadi.")
 
@@ -101,7 +106,7 @@ async def delete_button_confirm(update: Update, context: ContextTypes.DEFAULT_TY
             "Diqqat: bu amal bekor qilib bo'lmaydi!",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
-        logger.info("Button delete confirmation requested", button_id=button_id)
+        logger.info("Button delete confirmation requested: button_id=%s", button_id)
 
     except Exception as e:
         logger.error(f"Error in delete_button_confirm: {e}", exc_info=True)
@@ -133,8 +138,13 @@ async def handle_delete_button(update: Update, context: ContextTypes.DEFAULT_TYP
             if button:
                 session.delete(button)
                 await session.commit()
-                logger.info("Button deleted", button_id=button_id)
-                await update.callback_query.message.edit_text("✅ Tugma muvaffaqiyatli o'chirildi!")
+                logger.info("Button deleted: button_id=%s", button_id)
+                await update.callback_query.message.edit_text(
+                    "✅ Tugma o‘chirildi.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔘 Tugmalar", callback_data="back_to_buttons")]
+                    ]),
+                )
             else:
                 await update.callback_query.message.edit_text("❌ Tugma topilmadi.")
 

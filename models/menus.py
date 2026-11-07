@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, ForeignKey
+from sqlalchemy import String, Boolean, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
@@ -19,9 +19,19 @@ class Menu(Base):
         nullable=False
     )
 
+    message_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True
+    )
+
     is_start: Mapped[bool] = mapped_column(
         Boolean,
         default=False
+    )
+
+    position: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
     )
 
     # Relationships

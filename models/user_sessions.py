@@ -25,6 +25,11 @@ class UserSession(Base):
         nullable=False
     )
 
+    pending_admin_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
     bot = relationship("Bot")
     menu = relationship("Menu")
 

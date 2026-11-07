@@ -19,6 +19,11 @@ class Bot(Base):
         nullable=False
     )
 
+    username: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True
+    )
+
     token: Mapped[str] = mapped_column(
         String(255),
         unique=True,
@@ -37,6 +42,11 @@ class Bot(Base):
     )
 
     webhook_set: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False
+    )
+
+    onboarding_completed: Mapped[bool] = mapped_column(
         Boolean,
         default=False
     )

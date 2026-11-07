@@ -10,7 +10,9 @@ async def handle_start(bot, message, session):
     result = await session.execute(
         select(Menu).where(Menu.bot_id == bot.id, Menu.is_start == True)
     )
-    menu = result.scalar_one()
+    menu = result.scalar_one_or_none()
+    if menu is None or not menu.message_text:
+        return ActionType.text, "👋 Bot hozir sozlanmoqda. Tez orada qayta urinib ko‘ring."
 
     return ActionType.menu, str(menu.id)
 
@@ -21,13 +23,26 @@ async def handle_button(bot, callback, session):
     result = await session.execute(
         select(ButtonAction).where(ButtonAction.button_id == button_id)
     )
-    action = result.scalar_one()
+    action = result.scalar_one_or_none()
+    if action is None:
+        return None, None
 
     return action.action_type, action.value
 
 
 async def handle_text(bot, message, session):
     text = message["text"]
+    tg_user_id = message["from"]["id"]
+
+    session_result = await session.execute(
+        select(UserSession).where(
+            UserSession.bot_id == bot.id,
+            UserSession.tg_user_id == tg_user_id,
+        )
+    )
+    user_session = session_result.scalar_one_or_none()
+    if user_session and user_session.pending_admin_id:
+        return ActionType.admin, f"reply:{user_session.pending_admin_id}:{text}"
 
     result = await session.execute(
         select(Code).where(Code.bot_id == bot.id, Code.code == text)

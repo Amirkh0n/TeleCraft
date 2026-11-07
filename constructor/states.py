@@ -1,5 +1,7 @@
 WAITING_FOR_TOKEN = "waiting_for_token"
+WAITING_FOR_START_MESSAGE = "waiting_for_start_message"
 WAITING_FOR_MENU_NAME = "waiting_for_menu_name"
+WAITING_FOR_MENU_MESSAGE = "waiting_for_menu_message"
 WAITING_FOR_BUTTON_TEXT = "waiting_for_button_text"
 WAITING_FOR_ACTION_TEXT = "waiting_for_action_text"
 WAITING_FOR_ACTION_LINK = "waiting_for_action_link"

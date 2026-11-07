@@ -5,8 +5,6 @@ from constructor.flows.bots import open_bot
 
 
 async def handle_back(update, context):
-    await update.callback_query.answer()
-
     data = update.callback_query.data
 
     if data == "back_to_bots":

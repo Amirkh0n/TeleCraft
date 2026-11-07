@@ -30,4 +30,19 @@ async def route_update(bot, update, session):
         action_type, value = await handle_text(bot, message, session)
 
     if action_type:
-        await execute_action(bot, action_type, value, tg_user_id, session)
+        await execute_action(
+            bot,
+            action_type,
+            value,
+            tg_user_id,
+            session,
+            callback_id=callback.get("id") if callback else None,
+        )
+    elif message and message.get("text"):
+        from telegram import Bot as TgBot
+
+        async with TgBot(bot.token) as telegram_bot:
+            await telegram_bot.send_message(
+                chat_id=message["from"]["id"],
+                text="Kerakli bo‘limni menyudagi tugmalardan tanlang.",
+            )
