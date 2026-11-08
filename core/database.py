@@ -7,21 +7,26 @@ from sqlalchemy.pool import NullPool
 from models.base import Base
 import models
 from core.config import settings
+from core.db_url import parse_database_url
 
 DATABASE_URL = settings.DATABASE_URL
+db_config = parse_database_url(DATABASE_URL)
 
 engine_options = {
     "echo": settings.DEBUG,
-    "pool_pre_ping": True,
-    "pool_recycle": 3600,
+    "pool_pre_ping": True,  # also recovers connections dropped when a serverless DB suspends
+    # Serverless Postgres (Neon) closes idle connections; recycle them well before that matters.
+    "pool_recycle": 300 if db_config.is_postgres else 3600,
 }
-if not DATABASE_URL.endswith(":memory:"):
+if db_config.connect_args:
+    engine_options["connect_args"] = db_config.connect_args
+if db_config.url.database != ":memory:":
     engine_options.update(
         pool_size=settings.CONNECTION_POOL_SIZE,
         max_overflow=max(0, settings.MAX_CONNECTIONS - settings.CONNECTION_POOL_SIZE),
     )
 
-engine = create_async_engine(DATABASE_URL, **engine_options)
+engine = create_async_engine(db_config.url, **engine_options)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
@@ -44,9 +49,9 @@ async def _run_light_migrations():
     migrations = {
         "bots": {
             "webhook_url": "ALTER TABLE bots ADD COLUMN webhook_url VARCHAR(500)",
-            "webhook_set": "ALTER TABLE bots ADD COLUMN webhook_set BOOLEAN DEFAULT 0",
+            "webhook_set": "ALTER TABLE bots ADD COLUMN webhook_set BOOLEAN DEFAULT FALSE",
             "username": "ALTER TABLE bots ADD COLUMN username VARCHAR(255)",
-            "onboarding_completed": "ALTER TABLE bots ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0",
+            "onboarding_completed": "ALTER TABLE bots ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE",
             "token_hash": "ALTER TABLE bots ADD COLUMN token_hash VARCHAR(64)",
         },
         "menus": {

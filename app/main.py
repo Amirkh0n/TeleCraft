@@ -1,11 +1,12 @@
 import asyncio
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from sqlalchemy import select, func
 
-from core.database import AsyncSessionLocal, init_models
+from core.database import AsyncSessionLocal, db_config, init_models
 from webhook.handler import router as webhook_router
 from core.logger import logger
 from core.rate_limit import rate_limit_middleware
@@ -53,6 +54,11 @@ constructor_application = None
 
 @app.on_event("startup")
 async def on_startup():
+    if db_config.is_sqlite and os.environ.get("RENDER"):
+        logger.warning(
+            "DATABASE_URL points to SQLite on Render: all data is lost on every deploy. "
+            "Use an external PostgreSQL database."
+        )
     await init_models()
     global constructor_application
     constructor_application = build_constructor_application(settings.TELEGRAM_TOKEN)

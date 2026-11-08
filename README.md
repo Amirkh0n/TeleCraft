@@ -105,6 +105,7 @@ Create a `.env` file with the following variables:
 ```env
 TELEGRAM_TOKEN=your_constructor_bot_token_here
 BOT_TOKENS=bot_token1,bot_token2
+# Local: SQLite file. Production: PostgreSQL URL, e.g. postgresql://user:pass@host/db?sslmode=require
 DATABASE_URL=sqlite+aiosqlite:///./constructor.db
 WEBHOOK_HOST=0.0.0.0
 WEBHOOK_PORT=8000
@@ -196,10 +197,19 @@ docker run -d -p 8000:8000 --env-file .env telecraft
 
 ### Render Deployment
 
-1. Push to GitHub
-2. Connect Render account
-3. Select Docker from template
-4. Deploy
+Render's filesystem is wiped on every deploy and restart, so **never run on SQLite there** —
+all bots and menus would disappear. Use an external PostgreSQL database.
+
+1. Create a free PostgreSQL database (e.g. [Neon](https://neon.com)) and copy its connection string
+   (use the *pooled* one).
+2. In Render → Environment set:
+   - `DATABASE_URL` = the connection string (as given, `postgresql://...?sslmode=require` is fine)
+   - `ENCRYPTION_KEY` = a long random string (`python -c "import secrets; print(secrets.token_urlsafe(48))"`)
+   - `PUBLIC_BASE_URL` = your Render service URL
+   - `TELEGRAM_TOKEN` = the constructor bot token
+3. Push to GitHub — Render deploys automatically. Tables are created on startup.
+
+Never commit the connection string or `ENCRYPTION_KEY`; keep them in the Render dashboard only.
 
 ### VPS Deployment
 
