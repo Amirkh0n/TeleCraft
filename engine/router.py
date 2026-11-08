@@ -41,7 +41,7 @@ async def route_update(bot, update, session):
     elif message and message.get("text"):
         from telegram import Bot as TgBot
 
-        async with TgBot(bot.token) as telegram_bot:
+        async with TgBot(bot.plain_token) as telegram_bot:
             await telegram_bot.send_message(
                 chat_id=message["from"]["id"],
                 text="Kerakli bo‘limni menyudagi tugmalardan tanlang.",

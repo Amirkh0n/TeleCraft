@@ -14,6 +14,19 @@ class Settings(BaseSettings):
         default="https://your-app.onrender.com",
         description="Public base URL of the webhook server (used for auto setWebhook)"
     )
+    ENCRYPTION_KEY: str = Field(
+        default="",
+        description="Long random string used to encrypt child-bot tokens. Set it in production.",
+    )
+    WEBHOOK_SECRET_ENFORCE: bool = Field(
+        default=False,
+        description="Reject child-bot webhook calls that lack Telegram's secret header. "
+                    "Enable after one deploy, once every webhook has been re-registered.",
+    )
+    WEBHOOK_REFRESH_ON_START: bool = Field(
+        default=True,
+        description="Re-register child-bot webhooks on startup (applies URL and secret changes).",
+    )
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
     LOG_FORMAT: str = Field(default="json", description="Log format (json or text)")
     MAX_CONNECTIONS: int = Field(default=20, description="Maximum database connections")

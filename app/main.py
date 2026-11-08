@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, JSONResponse
@@ -8,6 +10,7 @@ from webhook.handler import router as webhook_router
 from core.logger import logger
 from core.rate_limit import rate_limit_middleware
 from core.config import settings
+from core.webhook_manager import refresh_webhooks
 from models.bots import Bot
 from models.users import User
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
@@ -55,6 +58,9 @@ async def on_startup():
     constructor_application = build_constructor_application(settings.TELEGRAM_TOKEN)
     await constructor_application.initialize()
     await constructor_application.start()
+    if settings.WEBHOOK_REFRESH_ON_START:
+        # Background task: must not delay startup or crash it if Telegram is slow.
+        asyncio.create_task(refresh_webhooks())
     logger.info("TeleCraft Constructor API started")
 
 

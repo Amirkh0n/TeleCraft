@@ -4,9 +4,16 @@ from telegram import Bot as TgBot
 from sqlalchemy import select, update
 from core.database import AsyncSessionLocal
 from models.bots import Bot
+from core.config import settings
 from core.logger import get_logger
+from core.security import token_hash, webhook_secret
 
 logger = get_logger("webhook_manager")
+
+
+def build_webhook_url(token: str) -> str:
+    """Public webhook URL for a child bot. Uses the token hash, never the token itself."""
+    return f"{settings.PUBLIC_BASE_URL.rstrip('/')}/h/{token_hash(token)}"
 
 
 async def set_webhook(token: str, webhook_url: str) -> bool:
@@ -16,17 +23,18 @@ async def set_webhook(token: str, webhook_url: str) -> bool:
             result = await tg_bot.set_webhook(
                 url=webhook_url,
                 max_connections=100,
-                allowed_updates=['message', 'callback_query']
+                allowed_updates=['message', 'callback_query'],
+                secret_token=webhook_secret(token),
             )
 
         if result:
-            logger.info(f"Webhook set successfully for bot with token: {token[:20]}...")
+            logger.info("Webhook set successfully for bot with token hash %s", token_hash(token)[:8])
 
             # Save webhook URL to database
             async with AsyncSessionLocal() as session:
                 # Get bot ID from token
                 result = await session.execute(
-                    select(Bot).where(Bot.token == token)
+                    select(Bot).where(Bot.token_matches(token))
                 )
                 bot = result.scalar_one_or_none()
 
@@ -34,21 +42,21 @@ async def set_webhook(token: str, webhook_url: str) -> bool:
                     # Update webhook URL
                     await session.execute(
                         update(Bot)
-                        .where(Bot.token == token)
+                        .where(Bot.token_matches(token))
                         .values(webhook_url=webhook_url, webhook_set=True)
                     )
                     await session.commit()
                     logger.info(f"Webhook URL saved to database for bot: {bot.name}")
                 else:
-                    logger.error(f"Bot not found for token: {token[:20]}...")
+                    logger.error("Bot not found for token hash %s", token_hash(token)[:8])
 
             return True
         else:
-            logger.error(f"Failed to set webhook for bot with token: {token[:20]}...")
+            logger.error("Failed to set webhook for token hash %s", token_hash(token)[:8])
             return False
 
     except Exception as e:
-        logger.error(f"Error setting webhook: {e}", exc_info=True)
+        logger.error("Error setting webhook: %s", type(e).__name__)
         return False
 
 
@@ -59,26 +67,26 @@ async def delete_webhook(token: str) -> bool:
             result = await tg_bot.delete_webhook()
 
         if result:
-            logger.info(f"Webhook deleted for bot with token: {token[:20]}...")
+            logger.info("Webhook deleted for token hash %s", token_hash(token)[:8])
 
             # Update webhook URL in database
             async with AsyncSessionLocal() as session:
                 result = await session.execute(
-                    select(Bot).where(Bot.token == token)
+                    select(Bot).where(Bot.token_matches(token))
                 )
                 bot = result.scalar_one_or_none()
 
                 if bot:
                     await session.execute(
                         update(Bot)
-                        .where(Bot.token == token)
+                        .where(Bot.token_matches(token))
                         .values(webhook_url=None, webhook_set=False)
                     )
                     await session.commit()
 
             return True
         else:
-            logger.error(f"Failed to delete webhook for bot with token: {token[:20]}...")
+            logger.error("Failed to delete webhook for token hash %s", token_hash(token)[:8])
             return False
 
     except Exception as e:
@@ -121,11 +129,11 @@ async def check_all_webhooks() -> list[dict]:
             bots = result.scalars().all()
 
             for bot in bots:
-                status = await get_webhook_status(bot.token)
+                status = await get_webhook_status(bot.plain_token)
                 results.append({
                     "bot_id": bot.id,
                     "bot_name": bot.name,
-                    "token": bot.token[:20] + "...",
+                    "token_hash": (bot.token_hash or "")[:8],
                     "webhook_url": bot.webhook_url,
                     "status": status
                 })
@@ -146,3 +154,21 @@ async def verify_webhook(url: str) -> bool:
     except Exception as e:
         logger.error(f"Error verifying webhook: {e}")
         return False
+
+
+async def refresh_webhooks() -> int:
+    """Re-register webhooks of all active child bots (new URL format + secret header)."""
+    if "your-app" in settings.PUBLIC_BASE_URL:
+        logger.warning("PUBLIC_BASE_URL is not configured; skipping webhook refresh")
+        return 0
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Bot).where(Bot.is_active == True))
+        tokens = [bot.plain_token for bot in result.scalars().all()]
+
+    refreshed = 0
+    for token in tokens:
+        if await set_webhook(token, build_webhook_url(token)):
+            refreshed += 1
+        await asyncio.sleep(0.2)
+    logger.info("Webhooks refreshed: %s/%s", refreshed, len(tokens))
+    return refreshed

@@ -6,7 +6,7 @@ from core.database import AsyncSessionLocal
 from core.logger import get_logger
 from core.validators import validate_bot_token, validate_menu_title, validate_text_length
 from core.config import settings
-from core.webhook_manager import set_webhook
+from core.webhook_manager import set_webhook, build_webhook_url
 from constructor.flows.bots import open_bot, resume_or_show_bots
 from constructor.session import (
     ensure_constructor_user,
@@ -28,10 +28,6 @@ from models.bots import Bot
 from models.menus import Menu
 
 logger = get_logger("handlers")
-
-
-def build_webhook_url(token: str) -> str:
-    return f"{settings.PUBLIC_BASE_URL.rstrip('/')}/webhooks/{token}"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -141,7 +137,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(Bot).where(Bot.token == token))
+        result = await session.execute(select(Bot).where(Bot.token_matches(token)))
         bot = result.scalar_one_or_none()
         if bot and bot.owner_id != user.id:
             await update.message.reply_text(
