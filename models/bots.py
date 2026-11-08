@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, ForeignKey, or_
+from sqlalchemy import String, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from .base import Base
 from core.security import encrypt_token, decrypt_token, token_hash, is_encrypted
@@ -78,5 +78,10 @@ class Bot(Base):
 
     @staticmethod
     def token_matches(plain_token: str):
-        """SQL filter matching a bot by plain token (hash, or legacy plaintext row)."""
-        return or_(Bot.token_hash == token_hash(plain_token), Bot.token == plain_token)
+        """SQL filter matching a bot by plain token.
+
+        Only the keyed hash is sent to the database, never the token itself, so a token cannot
+        appear in SQL logs (e.g. with DEBUG echo on). Every row has a hash: protect_bot_tokens()
+        encrypts legacy plaintext rows and fills token_hash on startup.
+        """
+        return Bot.token_hash == token_hash(plain_token)
