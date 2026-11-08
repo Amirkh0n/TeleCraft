@@ -85,33 +85,33 @@ class TestValidators:
     
     def test_validate_url_valid(self):
         """Test valid URL validation"""
-        result = validate_url("https://example.com")
+        result = validate_url("https://example.com", "url")
         assert result == "https://example.com"
     
     def test_validate_url_invalid(self):
         """Test invalid URL raises error"""
         with pytest.raises(ValidationError, match="must be a valid URL"):
-            validate_url("invalid-url")
+            validate_url("invalid-url", "url")
     
     def test_validate_min_length_valid(self):
         """Test valid min length"""
-        result = validate_min_length("hello", 5)
+        result = validate_min_length("hello", 5, "text")
         assert result == "hello"
     
     def test_validate_min_length_too_short(self):
         """Test too short string raises error"""
         with pytest.raises(ValidationError, match="must be at least"):
-            validate_min_length("hi", 5)
+            validate_min_length("hi", 5, "text")
     
     def test_validate_max_length_valid(self):
         """Test valid max length"""
-        result = validate_max_length("hello", 10)
+        result = validate_max_length("hello", 10, "text")
         assert result == "hello"
     
     def test_validate_max_length_too_long(self):
         """Test too long string raises error"""
         with pytest.raises(ValidationError, match="must not exceed"):
-            validate_max_length("a" * 100, 10)
+            validate_max_length("a" * 100, 10, "text")
 
 
 if __name__ == "__main__":

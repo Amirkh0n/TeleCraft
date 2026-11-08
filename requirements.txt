@@ -13,3 +13,5 @@ python-multipart>=0.0.6
 gunicorn>=21.2.0
 apscheduler>=3.10.0
 greenlet>=3.0
+cryptography>=42.0
+asyncpg>=0.29

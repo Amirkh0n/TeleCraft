@@ -1,4 +1,5 @@
 import asyncio
+import os
 from core.database import AsyncSessionLocal
 from models.users import User
 from models.bots import Bot
@@ -7,7 +8,7 @@ from models.buttons import Button
 from models.button_actions import ButtonAction, ActionType
 
 
-TOKEN = "5901209945:AAGQqHQmo5xOk-zlWYZJrNQOH48N8FmGoKU"
+TOKEN = os.environ["SEED_BOT_TOKEN"]  # never hard-code a bot token in source
 
 
 async def seed():

@@ -8,7 +8,7 @@ from models.admin_links import AdminLink
 from models.button_actions import ActionType
 
 async def execute_action(bot_model, action_type, value, tg_user_id, session, callback_id=None):
-    async with TgBot(bot_model.token) as tg_bot:
+    async with TgBot(bot_model.plain_token) as tg_bot:
         if callback_id:
             await tg_bot.answer_callback_query(callback_id)
         if action_type == ActionType.text:

@@ -101,11 +101,8 @@ async def update_user_stats(session, bot_id: int, user_id: int):
     stats = result.scalar_one_or_none()
     
     if stats:
+        # unique_menus_visited needs per-visit tracking; it is updated once analytics is wired in.
         stats.total_messages += 1
-        if menu_id and stats.unique_menus_visited < 1000:
-            stats.unique_menus_visited = await session.execute(
-                select(func.count(func.distinct(UserStats.unique_menus_visited)))
-            ).scalar() or 0
         stats.last_active = func.now()
     else:
         stats = UserStats(
