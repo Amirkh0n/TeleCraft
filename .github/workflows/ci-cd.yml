@@ -10,6 +10,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: telecraft_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
     - uses: actions/checkout@v4
 
@@ -28,3 +40,14 @@ jobs:
 
     - name: Run tests
       run: pytest
+
+    - name: Migrations on PostgreSQL (upgrade, no drift, downgrade, upgrade again)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/telecraft_ci
+        TELEGRAM_TOKEN: "111111:ci_constructor_token_not_real_xxxxxxxxxxx"
+        ENCRYPTION_KEY: ci-encryption-key
+      run: |
+        alembic upgrade head
+        alembic check
+        alembic downgrade base
+        alembic upgrade head

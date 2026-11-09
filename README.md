@@ -195,6 +195,23 @@ docker build -t telecraft .
 docker run -d -p 8000:8000 --env-file .env telecraft
 ```
 
+### Database migrations (Alembic)
+
+The schema is versioned in `migrations/versions/`. The app runs `alembic upgrade head` on every
+start, so a deploy brings the database up to date by itself. An existing database that predates
+Alembic is adopted automatically (data is kept).
+
+When you change a model in `models/`:
+
+```bash
+alembic revision --autogenerate -m "what changed"   # then READ the generated file
+alembic upgrade head                                 # try it locally
+```
+
+Commit the migration together with the model change. A test (`test_models_and_migrations_do_not_drift`)
+and CI fail if a model changed without a migration. Never edit the database schema by hand or add
+`ALTER TABLE` to the application code.
+
 ### Render Deployment
 
 Render's filesystem is wiped on every deploy and restart, so **never run on SQLite there** —

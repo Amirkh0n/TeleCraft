@@ -4,8 +4,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 from sqlalchemy.pool import NullPool
-from models.base import Base
-import models
+import models  # noqa: F401  (registers all tables)
 from core.config import settings
 from core.db_url import parse_database_url
 
@@ -37,44 +36,10 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def init_models():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await _run_light_migrations()
+    """Bring the schema up to date (Alembic), then protect any plaintext bot tokens."""
+    from core.migrations import upgrade_database
 
-
-async def _run_light_migrations():
-    """Add known missing columns without hiding unrelated database errors."""
-    from sqlalchemy import inspect, text
-
-    migrations = {
-        "bots": {
-            "webhook_url": "ALTER TABLE bots ADD COLUMN webhook_url VARCHAR(500)",
-            "webhook_set": "ALTER TABLE bots ADD COLUMN webhook_set BOOLEAN DEFAULT FALSE",
-            "username": "ALTER TABLE bots ADD COLUMN username VARCHAR(255)",
-            "onboarding_completed": "ALTER TABLE bots ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE",
-            "token_hash": "ALTER TABLE bots ADD COLUMN token_hash VARCHAR(64)",
-        },
-        "menus": {
-            "message_text": "ALTER TABLE menus ADD COLUMN message_text TEXT",
-            "position": "ALTER TABLE menus ADD COLUMN position INTEGER DEFAULT 0",
-        },
-        "user_sessions": {
-            "pending_admin_id": "ALTER TABLE user_sessions ADD COLUMN pending_admin_id BIGINT",
-        },
-    }
-    async with engine.begin() as conn:
-        for table_name, columns in migrations.items():
-            existing = await conn.run_sync(
-                lambda sync_conn, name=table_name: {
-                    column["name"] for column in inspect(sync_conn).get_columns(name)
-                }
-            )
-            for column_name, statement in columns.items():
-                if column_name not in existing:
-                    await conn.execute(text(statement))
-        await conn.execute(
-            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_bots_token_hash ON bots (token_hash)")
-        )
+    await upgrade_database(engine)
     await protect_bot_tokens()
 
 
