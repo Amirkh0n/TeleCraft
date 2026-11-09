@@ -34,5 +34,16 @@ class Menu(Base):
         default=0,
     )
 
+    # Optional media shown with the message. file_id belongs to the CHILD bot (see core/media.py).
+    media_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    media_file_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # "inline": buttons under the message. "reply": keyboard replacing the phone keyboard.
+    keyboard_mode: Mapped[str] = mapped_column(
+        String(10), default="inline", server_default="inline", nullable=False
+    )
+    # Buttons per row (1 or 2).
+    columns: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+
     # Relationships
     bot = relationship("Bot", backref="menus")

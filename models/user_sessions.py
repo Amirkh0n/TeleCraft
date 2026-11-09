@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, ForeignKey, Index
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, JSON, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
@@ -28,6 +28,16 @@ class UserSession(Base):
     pending_admin_id: Mapped[int | None] = mapped_column(
         BigInteger,
         nullable=True,
+    )
+
+    # Form the user is filling in right now (None when not in a form).
+    form_id: Mapped[int | None] = mapped_column(ForeignKey("forms.id"), nullable=True)
+    form_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    form_data: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+    # True while a reply keyboard from our bot is shown in this chat (so it can be removed later).
+    reply_keyboard_active: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
     )
 
     bot = relationship("Bot")

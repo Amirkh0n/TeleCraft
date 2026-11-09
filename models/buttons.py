@@ -24,5 +24,8 @@ class Button(Base):
         default=0
     )
 
+    # "normal", or (reply keyboards only) "contact" / "location": the button asks the user to share it.
+    kind: Mapped[str] = mapped_column(String(20), default="normal", server_default="normal", nullable=False)
+
     # Relationships
     menu = relationship("Menu", backref="buttons")

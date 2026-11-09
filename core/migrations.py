@@ -2,8 +2,8 @@
 
 * New database: ``alembic upgrade head`` builds everything from the migration files.
 * Database that already exists but was created before Alembic (``create_all`` + the old
-  "light migrations"): missing columns/tables are added once, the schema is stamped as the
-  baseline revision, and from then on only Alembic changes it.
+  "light migrations"): it is brought to the baseline schema (missing columns/tables only,
+  data untouched), then every newer migration applies normally.
 * Alembic-managed database: ``alembic upgrade head`` applies anything new.
 
 Schema changes after this point are NEVER made by hand here: add a migration
@@ -18,7 +18,6 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from core.logger import get_logger
-from models.base import Base
 
 logger = get_logger("migrations")
 
@@ -54,14 +53,21 @@ def make_config(connection: Connection | None = None) -> Config:
 
 
 def _bring_legacy_schema_to_baseline(connection: Connection) -> None:
-    Base.metadata.create_all(connection)  # creates only tables that are missing
+    """Make an existing pre-Alembic database match the baseline schema (and nothing newer).
+
+    Columns that older app versions added by hand are added first; then the baseline
+    migration runs. It is idempotent, so it only creates tables/indexes that are missing.
+    Later migrations then apply on top like on any other database.
+    """
     inspector = inspect(connection)
+    existing_tables = set(inspector.get_table_names())
     for table, columns in LEGACY_COLUMNS.items():
+        if table not in existing_tables:
+            continue
         existing = {column["name"] for column in inspector.get_columns(table)}
         for name, statement in columns.items():
             if name not in existing:
                 connection.execute(text(statement))
-    connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_bots_token_hash ON bots (token_hash)"))
 
 
 def _upgrade(connection: Connection) -> None:
@@ -70,7 +76,7 @@ def _upgrade(connection: Connection) -> None:
     if "alembic_version" not in tables and "bots" in tables:
         logger.info("Existing database without Alembic history: adopting it as %s", BASELINE_REVISION)
         _bring_legacy_schema_to_baseline(connection)
-        command.stamp(config, BASELINE_REVISION)
+        command.upgrade(config, BASELINE_REVISION)
     command.upgrade(config, "head")
 
 
