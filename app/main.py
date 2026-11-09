@@ -12,6 +12,7 @@ from core.logger import logger
 from core.rate_limit import rate_limit_middleware
 from core.config import settings
 from core.webhook_manager import refresh_webhooks
+from engine.telegram_client import close_all_clients
 from models.bots import Bot
 from models.users import User
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
@@ -75,6 +76,7 @@ async def on_shutdown():
     if constructor_application:
         await constructor_application.stop()
         await constructor_application.shutdown()
+    await close_all_clients()
     logger.info("TeleCraft Constructor API shutting down")
 
 
