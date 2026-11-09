@@ -85,3 +85,10 @@ def test_unknown_bot_returns_404(client, route_update):
 def test_legacy_token_url_still_works(client, route_update):
     assert client.post(f"/webhooks/{TOKEN}", json={"update_id": 1}).status_code == 200
     route_update.assert_awaited_once()
+
+
+def test_token_lookup_never_sends_plain_token_to_database():
+    compiled = Bot.token_matches(TOKEN).compile()
+    assert TOKEN not in str(compiled)
+    assert TOKEN not in [str(value) for value in compiled.params.values()]
+    assert token_hash(TOKEN) in compiled.params.values()
