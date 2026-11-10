@@ -20,6 +20,7 @@ from models.menus import Menu
 from models.user_sessions import UserSession
 from models.users import User
 from webapp import api as webapp_api
+from webapp import api_audience
 from webapp.auth import AuthError, get_session, validate_init_data
 from webapp.telegram_html import check_html
 
@@ -37,6 +38,7 @@ def sign(user_id=OWNER, *, token=None, age=0, extra=None, name="Owner"):
 async def client(env):
     app = FastAPI()
     app.include_router(webapp_api.router)
+    app.include_router(api_audience.router)
 
     async def override():
         yield env.session
