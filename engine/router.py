@@ -17,6 +17,7 @@ from engine.resolver import (
     find_share_button,
     has_share_button,
 )
+from engine import subscription
 from engine.telegram_client import get_client
 
 logger = get_logger("router")
@@ -102,6 +103,14 @@ async def _on_callback(bot, callback, session, tg):
 
     user_id = callback["from"]["id"]
     await touch_user(session, bot.id, callback["from"])
+    if callback.get("data") == subscription.CHECK_CALLBACK:
+        if await subscription.gate(tg, bot, user_id, session, use_cache=False):
+            action_type, value = await handle_start(bot, callback, session)
+            user_session = await get_user_session(session, bot.id, user_id)
+            await execute_action(bot, action_type, value, user_id, session, tg=tg, user_session=user_session)
+        return
+    if not await subscription.gate(tg, bot, user_id, session):
+        return
     user_session = await get_user_session(session, bot.id, user_id)
     if forms.is_active(user_session):
         # Tapping an old inline button while filling a form means "leave the form".
@@ -123,6 +132,8 @@ async def _on_message(bot, message, session, tg):
     text = message.get("text")
     payload = text.split(maxsplit=1)[1] if text and _command(text) == "/start" and len(text.split()) > 1 else None
     await touch_user(session, bot.id, sender, source=payload)
+    if not await subscription.gate(tg, bot, user_id, session):
+        return
     user_session = await get_user_session(session, bot.id, user_id)
 
     if text and _command(text) == "/start":

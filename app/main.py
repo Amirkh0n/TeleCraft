@@ -12,6 +12,7 @@ from core.logger import logger
 from core.rate_limit import rate_limit_middleware
 from core.config import settings
 from core.webhook_manager import refresh_webhooks
+from engine.broadcast import resume_pending
 from engine.telegram_client import close_all_clients
 from models.bots import Bot
 from models.users import User
@@ -53,6 +54,15 @@ app.middleware("http")(rate_limit_middleware)
 constructor_application = None
 
 
+async def _resume_broadcasts():
+    try:
+        resumed = await resume_pending()
+        if resumed:
+            logger.info("Resumed %s interrupted broadcast(s)", resumed)
+    except Exception:
+        logger.exception("Could not resume broadcasts")
+
+
 @app.on_event("startup")
 async def on_startup():
     if db_config.is_sqlite and os.environ.get("RENDER"):
@@ -68,6 +78,7 @@ async def on_startup():
     if settings.WEBHOOK_REFRESH_ON_START:
         # Background task: must not delay startup or crash it if Telegram is slow.
         asyncio.create_task(refresh_webhooks())
+    asyncio.create_task(_resume_broadcasts())
     logger.info("TeleCraft Constructor API started")
 
 
