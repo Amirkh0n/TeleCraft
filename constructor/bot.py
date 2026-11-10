@@ -20,6 +20,7 @@ from constructor.flows.menus import show_menus, add_menu_click, edit_menu_messag
 from constructor.flows.buttons import show_buttons, add_button_click
 from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
+from constructor.flows import screens, forms as form_flows
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click
 
@@ -28,6 +29,25 @@ def build_constructor_application(token: str):
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel_action))
+    # Anchored new-style callbacks go first: the legacy patterns below are unanchored substrings.
+    app.add_handler(CallbackQueryHandler(screens.show_settings, pattern=r"^scr:open:\d+$"))
+    app.add_handler(CallbackQueryHandler(screens.ask_media, pattern=r"^scr:media:\d+$"))
+    app.add_handler(CallbackQueryHandler(screens.toggle, pattern=r"^scr:(mode|cols|nomedia):\d+$"))
+    app.add_handler(CallbackQueryHandler(screens.add_share_button, pattern=r"^scr:share:(contact|location):\d+$"))
+    app.add_handler(CallbackQueryHandler(screens.action_media_click, pattern=r"^act:media$"))
+    app.add_handler(CallbackQueryHandler(form_flows.show_forms, pattern=r"^frm:list$"))
+    app.add_handler(CallbackQueryHandler(form_flows.new_form, pattern=r"^frm:new$"))
+    app.add_handler(CallbackQueryHandler(form_flows.open_form, pattern=r"^frm:open:\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.add_question, pattern=r"^frm:addq:\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.pick_type, pattern=r"^frm:ft:\w+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.set_required, pattern=r"^frm:req:[01]$"))
+    app.add_handler(CallbackQueryHandler(form_flows.delete_last_question, pattern=r"^frm:delq:\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.toggle_notify, pattern=r"^frm:notify:\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.edit_text_click, pattern=r"^frm:(intro|final):\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.delete_form, pattern=r"^frm:(del|delok):\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.show_submissions, pattern=r"^frm:(subs|csv):\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.pick_form_for_button, pattern=r"^act:form$"))
+    app.add_handler(CallbackQueryHandler(form_flows.use_form, pattern=r"^frm:use:\d+$"))
     app.add_handler(CallbackQueryHandler(add_bot_click, pattern="add_bot"))
     app.add_handler(CallbackQueryHandler(resume_draft, pattern="resume_draft"))
     app.add_handler(CallbackQueryHandler(show_help, pattern="help"))
@@ -53,6 +73,10 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(handle_back, pattern=r"^back_to_"))
     app.add_handler(CallbackQueryHandler(cancel_action, pattern="cancel"))
     app.add_handler(CallbackQueryHandler(open_bot))
+    app.add_handler(MessageHandler(
+        filters.PHOTO | filters.VIDEO | filters.ANIMATION | filters.AUDIO | filters.VOICE | filters.Document.ALL,
+        screens.handle_media_message,
+    ))
     app.add_handler(MessageHandler(filters.TEXT, messages))
     return app
 

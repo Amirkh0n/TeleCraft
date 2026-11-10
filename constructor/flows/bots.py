@@ -93,6 +93,7 @@ async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id: i
         [InlineKeyboardButton("📝 Bosh xabar", callback_data="edit_start_message")],
         [InlineKeyboardButton("📂 Menyular", callback_data="menus")],
         [InlineKeyboardButton("🔘 Tugmalar", callback_data="start_buttons")],
+        [InlineKeyboardButton("📋 Formalar", callback_data="frm:list")],
         [InlineKeyboardButton("🧪 Sinab ko‘rish", callback_data="test_bot")],
         [InlineKeyboardButton("📊 Holat", callback_data="bot_status")],
         [InlineKeyboardButton("⬅️ Botlarim", callback_data="back_to_bots")],

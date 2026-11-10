@@ -108,7 +108,7 @@ async def handle_menu_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     tg_user = update.effective_user
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
     try:
-        message_text = validate_text_length(update.message.text)
+        message_text = validate_text_length(update.message.text_html, 4000)
     except Exception:
         await update.message.reply_text("❌ Xabar bo‘sh bo‘lmasin. Qayta yuboring.")
         return

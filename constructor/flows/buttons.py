@@ -10,6 +10,8 @@ from constructor.ui import show_screen
 from models.buttons import Button
 from models.menus import Menu
 
+_KIND_ICON = {"contact": "📞", "location": "📍"}
+
 
 async def show_buttons_for_menu(
     update: Update,
@@ -30,12 +32,15 @@ async def show_buttons_for_menu(
         buttons = result.scalars().all()
 
     keyboard = [
-        [InlineKeyboardButton(f"🔘 {button.text}", callback_data=f"button_{button.id}")]
+        [InlineKeyboardButton(
+            f"{_KIND_ICON.get(button.kind, '🔘')} {button.text}", callback_data=f"button_{button.id}"
+        )]
         for button in buttons
     ]
     keyboard.extend([
         [InlineKeyboardButton("➕ Tugma qo‘shish", callback_data="add_button")],
         [InlineKeyboardButton("📝 Menu xabarini tahrirlash", callback_data="edit_menu_message")],
+        [InlineKeyboardButton("🖼 Media va ko‘rinish", callback_data=f"scr:open:{menu.id}")],
         [InlineKeyboardButton("⬅️ Menyular", callback_data="menus")],
     ])
     if not menu.is_start:
