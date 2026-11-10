@@ -114,3 +114,11 @@ async def test_builder_only_reaches_own_menus_and_forms(tmp_path):
         assert (await owned_menu(s, 2, menu.id))[0].id == menu.id
         assert (await owned_form(s, 2, form.id))[0].id == form.id
     await engine.dispose()
+
+
+def test_link_action_url_validation_is_callable_the_way_the_builder_calls_it():
+    """Regression: the builder called validate_url without its field name, so no link could ever be saved."""
+    from core.validators import validate_url
+    assert validate_url("https://example.com", "URL") == "https://example.com"
+    with pytest.raises(Exception):
+        validate_url("example.com", "URL")

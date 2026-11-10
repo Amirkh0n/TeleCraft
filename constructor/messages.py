@@ -1,4 +1,5 @@
 from constructor import states
+from constructor.flows import audience as audience_flows
 from constructor.flows import forms as form_flows
 from constructor.handlers import handle_token
 from constructor.handlers import handle_start_message
@@ -27,5 +28,7 @@ async def messages(update, context):
         await handle_action_link(update, context)
     elif state == states.WAITING_FOR_ADMIN_ID:
         await handle_admin_id(update, context)
+    elif state in states.AUDIENCE_STATES:
+        await audience_flows.handle_text(update, context)
     elif state in states.FORM_STATES:
         await form_flows.handle_text(update, context)

@@ -113,7 +113,7 @@ async def handle_action_link(update: Update, context: ContextTypes.DEFAULT_TYPE)
     tg_user = update.effective_user
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
     try:
-        url = validate_url(update.message.text)
+        url = validate_url((update.message.text or "").strip(), "URL")
     except Exception:
         await update.message.reply_text("❌ Havola https:// bilan boshlanishi kerak. Qayta yuboring.")
         return

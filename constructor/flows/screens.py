@@ -12,7 +12,7 @@ from telegram.ext import ContextTypes
 from core.database import AsyncSessionLocal
 from core.logger import get_logger
 from constructor.session import ensure_constructor_user, save_builder_session
-from constructor.states import WAITING_FOR_ACTION_MEDIA, WAITING_FOR_MENU_MEDIA
+from constructor.states import WAITING_FOR_ACTION_MEDIA, WAITING_FOR_BC_CONTENT, WAITING_FOR_MENU_MEDIA
 from constructor.ui import show_screen
 from engine.render import MEDIA_TYPES
 from engine.telegram_client import get_client
@@ -231,6 +231,10 @@ async def _transfer(update: Update, context: ContextTypes.DEFAULT_TYPE, bot):
 
 async def handle_media_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state = context.user_data.get("state")
+    if state == WAITING_FOR_BC_CONTENT:
+        from constructor.flows.audience import handle_broadcast_media
+        await handle_broadcast_media(update, context)
+        return
     if state not in (WAITING_FOR_MENU_MEDIA, WAITING_FOR_ACTION_MEDIA):
         return
     message = update.message

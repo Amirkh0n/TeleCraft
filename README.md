@@ -342,3 +342,23 @@ For support, email support@telecraft.app or create an issue on GitHub.
 ## 🌟 Star History
 
 If you find TeleCraft useful, please star ⭐ the repository!
+
+## Imkoniyatlar (engine v2 + audience)
+
+**Child bot:** media bilan menyular (rasm, video, GIF, fayl, audio), xabar ostidagi yoki pastki klaviatura
+tugmalari, kontakt/lokatsiya so‘rash, formalar (matn, raqam, telefon, email, tanlov, rasm, lokatsiya),
+adminlarga bildirishnoma.
+
+**Auditoriya:** har bir child bot o‘z foydalanuvchilarini (`bot_users`) kuzatadi: kim, qachon, qaysi
+`/start nom` havolasidan kelgani, botni bloklaganmi. Statistika konstruktorda: 👥 Auditoriya.
+
+**Broadcast:** matn/media + havola tugmasi, avval o‘zingizga ko‘rib chiqish, tasdiqdan so‘ng yuborish.
+Telegram limitiga mos (~25 xabar/s), bloklaganlar avtomatik belgilanadi, server qayta ishga tushsa
+yuborish qolgan joyidan davom etadi (eng ko‘pi 10 kishiga ikki marta borishi mumkin).
+
+**Majburiy obuna:** foydalanuvchi ko‘rsatilgan kanallarga a‘zo bo‘lmaguncha botdan foydalana olmaydi.
+Child bot kanalda **administrator** bo‘lishi kerak. Tekshiruv amalga oshmasa (bot admin emas, kanal
+o‘chirilgan) foydalanuvchi bloklanmaydi.
+
+`my_chat_member` yangilanishlari uchun webhooklar `WEBHOOK_REFRESH_ON_START=True` bilan qayta
+o‘rnatiladi; shundan keyin botni bloklash/blokdan chiqarish darhol ko‘rinadi.

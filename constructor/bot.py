@@ -20,7 +20,7 @@ from constructor.flows.menus import show_menus, add_menu_click, edit_menu_messag
 from constructor.flows.buttons import show_buttons, add_button_click
 from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
-from constructor.flows import screens, forms as form_flows
+from constructor.flows import screens, forms as form_flows, audience as aud
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click
 
@@ -48,6 +48,14 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(form_flows.show_submissions, pattern=r"^frm:(subs|csv):\d+$"))
     app.add_handler(CallbackQueryHandler(form_flows.pick_form_for_button, pattern=r"^act:form$"))
     app.add_handler(CallbackQueryHandler(form_flows.use_form, pattern=r"^frm:use:\d+$"))
+    app.add_handler(CallbackQueryHandler(aud.show_stats, pattern=r"^aud:home$"))
+    app.add_handler(CallbackQueryHandler(aud.show_channels, pattern=r"^sub:home$"))
+    app.add_handler(CallbackQueryHandler(aud.add_channel_click, pattern=r"^sub:add$"))
+    app.add_handler(CallbackQueryHandler(aud.delete_channel, pattern=r"^sub:del:\d+$"))
+    app.add_handler(CallbackQueryHandler(aud.broadcast_home, pattern=r"^bc:home$"))
+    app.add_handler(CallbackQueryHandler(aud.new_broadcast, pattern=r"^bc:new$"))
+    app.add_handler(CallbackQueryHandler(aud.show_broadcast, pattern=r"^bc:(open|status):\d+$"))
+    app.add_handler(CallbackQueryHandler(aud.broadcast_action, pattern=r"^bc:(preview|btn|ask|go|cancel):\d+$"))
     app.add_handler(CallbackQueryHandler(add_bot_click, pattern="add_bot"))
     app.add_handler(CallbackQueryHandler(resume_draft, pattern="resume_draft"))
     app.add_handler(CallbackQueryHandler(show_help, pattern="help"))
