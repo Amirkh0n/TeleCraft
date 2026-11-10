@@ -8,6 +8,7 @@ from telegram.error import Forbidden
 
 from core.logger import get_logger
 from engine import forms
+from engine.audience import set_blocked, touch_user
 from engine.actions import execute_action, get_user_session
 from engine.resolver import (
     handle_start,
@@ -54,7 +55,7 @@ def _user_lock(bot_id: int, user_id) -> asyncio.Lock:
 
 
 def _sender_id(update: dict):
-    source = update.get("callback_query") or update.get("message") or {}
+    source = update.get("callback_query") or update.get("message") or update.get("my_chat_member") or {}
     return (source.get("from") or {}).get("id")
 
 
@@ -72,13 +73,22 @@ async def route_update(bot, update, session, *, client=None):
     try:
         tg = client or await get_client(bot.plain_token)
         async with _user_lock(bot.id, _sender_id(update)):
-            if update.get("callback_query"):
+            if update.get("my_chat_member"):
+                await _on_membership(bot, update["my_chat_member"], session)
+            elif update.get("callback_query"):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):
                 await _on_message(bot, update["message"], session, tg)
     except Forbidden:
         logger.info("bot_id=%s: the user blocked the bot or never started it", bot.id)
         await session.rollback()
+        sender = _sender_id(update)
+        if sender is not None:
+            try:
+                await set_blocked(session, bot.id, sender)
+            except Exception:
+                logger.exception("could not mark user as blocked")
+                await session.rollback()
     except Exception:
         logger.exception("bot_id=%s: failed to process update %s", bot.id, update.get("update_id"))
         await session.rollback()
@@ -91,6 +101,7 @@ async def _on_callback(bot, callback, session, tg):
         logger.info("answer_callback_query failed: %s", exc)
 
     user_id = callback["from"]["id"]
+    await touch_user(session, bot.id, callback["from"])
     user_session = await get_user_session(session, bot.id, user_id)
     if forms.is_active(user_session):
         # Tapping an old inline button while filling a form means "leave the form".
@@ -110,6 +121,8 @@ async def _on_message(bot, message, session, tg):
 
     user_id = sender["id"]
     text = message.get("text")
+    payload = text.split(maxsplit=1)[1] if text and _command(text) == "/start" and len(text.split()) > 1 else None
+    await touch_user(session, bot.id, sender, source=payload)
     user_session = await get_user_session(session, bot.id, user_id)
 
     if text and _command(text) == "/start":
@@ -135,6 +148,16 @@ async def _on_message(bot, message, session, tg):
     elif message.get("location"):
         await _on_shared(bot, "location", message, user_session, session, tg)
     # Other message types (photos, stickers...) outside a form are ignored.
+
+
+async def _on_membership(bot, event, session):
+    """The user blocked or unblocked the bot (needs ``my_chat_member`` in allowed_updates)."""
+    if (event.get("chat") or {}).get("type") != "private":
+        return
+    status = (event.get("new_chat_member") or {}).get("status")
+    user_id = (event.get("from") or {}).get("id")
+    if user_id is not None and status in ("kicked", "member"):
+        await set_blocked(session, bot.id, user_id, blocked=status == "kicked")
 
 
 async def _on_shared(bot, kind, message, user_session, session, tg):
