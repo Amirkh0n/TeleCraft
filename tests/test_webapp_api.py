@@ -268,8 +268,8 @@ async def test_screen_media_upload_goes_through_the_child_bot(client, monkeypatc
     env = client.env
     sent = fake_child(env, monkeypatch)
     menu = await add_menu(env, "Bosh", "x", start=True)
-    response = await client.post(f"/api/v1/menus/{menu.id}/media", headers=client.hdr,
-                                files={"file": ("a.png", b"\x89PNG" + b"0" * 100, "image/png")})
+    png = {"file": ("a.png", b"\x89PNG" + b"0" * 100, "image/png")}
+    response = await client.post(f"/api/v1/menus/{menu.id}/media", headers=client.hdr, files=png)
     assert response.status_code == 200 and response.json()["media_type"] == "photo"
     assert sent[0][1]["chat_id"] == OWNER
     await env.session.refresh(menu)
@@ -366,3 +366,25 @@ async def test_stats_endpoint(client):
 ])
 def test_check_html(text, ok):
     assert (check_html(text) is None) is ok
+
+
+# ---------------------------------------------------------------- serving
+
+async def test_editor_is_served_and_api_requires_auth():
+    from app.main import app
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+        page = await c.get("/app/")
+        assert page.status_code == 200 and "TeleCraft muharriri" in page.text
+        assert (await c.get("/app/app.js")).status_code == 200
+        assert (await c.get("/app/styles.css")).headers["content-type"].startswith("text/css")
+        assert (await c.get("/api/v1/bots")).status_code == 401
+
+
+def test_editor_url_needs_https(monkeypatch):
+    from webapp import editor_url
+    for value, expected in (("https://bot.example.com", "https://bot.example.com/app/"),
+                            ("https://bot.example.com/", "https://bot.example.com/app/"),
+                            ("http://bot.example.com", None), ("https://your-app.onrender.com", None), ("", None)):
+        monkeypatch.setattr(settings, "PUBLIC_BASE_URL", value)
+        assert editor_url() == expected

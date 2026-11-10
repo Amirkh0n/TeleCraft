@@ -362,3 +362,16 @@ o‘chirilgan) foydalanuvchi bloklanmaydi.
 
 `my_chat_member` yangilanishlari uchun webhooklar `WEBHOOK_REFRESH_ON_START=True` bilan qayta
 o‘rnatiladi; shundan keyin botni bloklash/blokdan chiqarish darhol ko‘rinadi.
+
+## Vizual muharrir (Telegram Mini App)
+
+Konstruktor botda **Bot boshqaruvi → 🎨 Vizual muharrir** (yoki chatdagi «Muharrir» tugmasi) muharrirni
+ochadi: mijoz ko‘radigan chat aynan shu ko‘rinishda chiqadi, xabar yoki tugmani bosib tahrirlaysiz.
+Ekranlar, tugmalar va ularning amallari, media, tugmalar joylashuvi (xabar ostida / pastki klaviatura),
+formalar va auditoriya statistikasi shu yerda.
+
+- Mini App faqat **HTTPS** manzilda ochiladi: Render'da `PUBLIC_BASE_URL=https://<servis>.onrender.com` bo‘lishi kerak.
+- Kirish Telegram imzosi bilan (`initData`, konstruktor bot tokeni orqali tekshiriladi): parol yoki sessiya yo‘q,
+  har bir so‘rov faqat foydalanuvchining o‘z botlari bilan ishlaydi.
+- Manzil: `/app/`, API: `/api/v1/…`. Qurish bosqichi yo‘q: `webapp/static/` dagi oddiy HTML/CSS/JS.
+- Broadcast va majburiy obuna hozircha konstruktor bot ichida; muharrirga keyingi bosqichda ko‘chiriladi.
