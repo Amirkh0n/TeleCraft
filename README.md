@@ -195,6 +195,23 @@ docker build -t telecraft .
 docker run -d -p 8000:8000 --env-file .env telecraft
 ```
 
+### Database migrations (Alembic)
+
+The schema is versioned in `migrations/versions/`. The app runs `alembic upgrade head` on every
+start, so a deploy brings the database up to date by itself. An existing database that predates
+Alembic is adopted automatically (data is kept).
+
+When you change a model in `models/`:
+
+```bash
+alembic revision --autogenerate -m "what changed"   # then READ the generated file
+alembic upgrade head                                 # try it locally
+```
+
+Commit the migration together with the model change. A test (`test_models_and_migrations_do_not_drift`)
+and CI fail if a model changed without a migration. Never edit the database schema by hand or add
+`ALTER TABLE` to the application code.
+
 ### Render Deployment
 
 Render's filesystem is wiped on every deploy and restart, so **never run on SQLite there** —
@@ -325,3 +342,36 @@ For support, email support@telecraft.app or create an issue on GitHub.
 ## 🌟 Star History
 
 If you find TeleCraft useful, please star ⭐ the repository!
+
+## Imkoniyatlar (engine v2 + audience)
+
+**Child bot:** media bilan menyular (rasm, video, GIF, fayl, audio), xabar ostidagi yoki pastki klaviatura
+tugmalari, kontakt/lokatsiya so‘rash, formalar (matn, raqam, telefon, email, tanlov, rasm, lokatsiya),
+adminlarga bildirishnoma.
+
+**Auditoriya:** har bir child bot o‘z foydalanuvchilarini (`bot_users`) kuzatadi: kim, qachon, qaysi
+`/start nom` havolasidan kelgani, botni bloklaganmi. Statistika konstruktorda: 👥 Auditoriya.
+
+**Broadcast:** matn/media + havola tugmasi, avval o‘zingizga ko‘rib chiqish, tasdiqdan so‘ng yuborish.
+Telegram limitiga mos (~25 xabar/s), bloklaganlar avtomatik belgilanadi, server qayta ishga tushsa
+yuborish qolgan joyidan davom etadi (eng ko‘pi 10 kishiga ikki marta borishi mumkin).
+
+**Majburiy obuna:** foydalanuvchi ko‘rsatilgan kanallarga a‘zo bo‘lmaguncha botdan foydalana olmaydi.
+Child bot kanalda **administrator** bo‘lishi kerak. Tekshiruv amalga oshmasa (bot admin emas, kanal
+o‘chirilgan) foydalanuvchi bloklanmaydi.
+
+`my_chat_member` yangilanishlari uchun webhooklar `WEBHOOK_REFRESH_ON_START=True` bilan qayta
+o‘rnatiladi; shundan keyin botni bloklash/blokdan chiqarish darhol ko‘rinadi.
+
+## Vizual muharrir (Telegram Mini App)
+
+Konstruktor botda **Bot boshqaruvi → 🎨 Vizual muharrir** (yoki chatdagi «Muharrir» tugmasi) muharrirni
+ochadi: mijoz ko‘radigan chat aynan shu ko‘rinishda chiqadi, xabar yoki tugmani bosib tahrirlaysiz.
+Ekranlar, tugmalar va ularning amallari, media, tugmalar joylashuvi (xabar ostida / pastki klaviatura),
+formalar va auditoriya statistikasi shu yerda.
+
+- Mini App faqat **HTTPS** manzilda ochiladi: Render'da `PUBLIC_BASE_URL=https://<servis>.onrender.com` bo‘lishi kerak.
+- Kirish Telegram imzosi bilan (`initData`, konstruktor bot tokeni orqali tekshiriladi): parol yoki sessiya yo‘q,
+  har bir so‘rov faqat foydalanuvchining o‘z botlari bilan ishlaydi.
+- Manzil: `/app/`, API: `/api/v1/…`. Qurish bosqichi yo‘q: `webapp/static/` dagi oddiy HTML/CSS/JS.
+- Broadcast va majburiy obuna hozircha konstruktor bot ichida; muharrirga keyingi bosqichda ko‘chiriladi.

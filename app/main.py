@@ -3,19 +3,24 @@ import os
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from sqlalchemy import select, func
 
 from core.database import AsyncSessionLocal, db_config, init_models
 from webhook.handler import router as webhook_router
+from webapp.api import router as webapp_router
 from core.logger import logger
 from core.rate_limit import rate_limit_middleware
 from core.config import settings
 from core.webhook_manager import refresh_webhooks
+from engine.broadcast import resume_pending
+from engine.telegram_client import close_all_clients
 from models.bots import Bot
 from models.users import User
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
-from telegram import Update
+from telegram import MenuButtonWebApp, Update, WebAppInfo
+from webapp import editor_url
 from constructor.bot import build_constructor_application
 
 app = FastAPI(
@@ -52,6 +57,15 @@ app.middleware("http")(rate_limit_middleware)
 constructor_application = None
 
 
+async def _resume_broadcasts():
+    try:
+        resumed = await resume_pending()
+        if resumed:
+            logger.info("Resumed %s interrupted broadcast(s)", resumed)
+    except Exception:
+        logger.exception("Could not resume broadcasts")
+
+
 @app.on_event("startup")
 async def on_startup():
     if db_config.is_sqlite and os.environ.get("RENDER"):
@@ -64,9 +78,18 @@ async def on_startup():
     constructor_application = build_constructor_application(settings.TELEGRAM_TOKEN)
     await constructor_application.initialize()
     await constructor_application.start()
+    url = editor_url()
+    if url:
+        try:  # the blue button next to the message field opens the editor
+            await constructor_application.bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(text="Muharrir", web_app=WebAppInfo(url=url))
+            )
+        except Exception:
+            logger.warning("Could not set the editor menu button", exc_info=True)
     if settings.WEBHOOK_REFRESH_ON_START:
         # Background task: must not delay startup or crash it if Telegram is slow.
         asyncio.create_task(refresh_webhooks())
+    asyncio.create_task(_resume_broadcasts())
     logger.info("TeleCraft Constructor API started")
 
 
@@ -75,6 +98,7 @@ async def on_shutdown():
     if constructor_application:
         await constructor_application.stop()
         await constructor_application.shutdown()
+    await close_all_clients()
     logger.info("TeleCraft Constructor API shutting down")
 
 
@@ -267,3 +291,5 @@ async def constructor_webhook(request: Request):
 
 
 app.include_router(webhook_router)
+app.include_router(webapp_router)
+app.mount("/app", StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "webapp", "static"), html=True), name="miniapp")

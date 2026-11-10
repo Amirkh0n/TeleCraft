@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, Update
+from telegram import InlineKeyboardButton, Update, WebAppInfo
 from telegram.ext import ContextTypes
 from sqlalchemy import select
 
@@ -6,6 +6,7 @@ from core.database import AsyncSessionLocal
 from constructor.session import ensure_constructor_user, save_builder_session
 from constructor.ui import show_screen
 from models.bots import Bot
+from webapp import editor_url
 from models.menus import Menu
 
 
@@ -15,6 +16,11 @@ def bot_status(bot: Bot) -> str:
     if not bot.onboarding_completed:
         return "🟠 Sozlash tugallanmagan"
     return "🟢 Tayyor"
+
+
+def _editor_row():
+    url = editor_url()
+    return [[InlineKeyboardButton("🎨 Vizual muharrir", web_app=WebAppInfo(url=url))]] if url else []
 
 
 async def show_user_bots(update: Update, context: ContextTypes.DEFAULT_TYPE, back: bool = False):
@@ -92,7 +98,12 @@ async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id: i
     keyboard = [
         [InlineKeyboardButton("📝 Bosh xabar", callback_data="edit_start_message")],
         [InlineKeyboardButton("📂 Menyular", callback_data="menus")],
+        *_editor_row(),
         [InlineKeyboardButton("🔘 Tugmalar", callback_data="start_buttons")],
+        [InlineKeyboardButton("📋 Formalar", callback_data="frm:list")],
+        [InlineKeyboardButton("👥 Auditoriya", callback_data="aud:home"),
+         InlineKeyboardButton("📣 Broadcast", callback_data="bc:home")],
+        [InlineKeyboardButton("🔒 Majburiy obuna", callback_data="sub:home")],
         [InlineKeyboardButton("🧪 Sinab ko‘rish", callback_data="test_bot")],
         [InlineKeyboardButton("📊 Holat", callback_data="bot_status")],
         [InlineKeyboardButton("⬅️ Botlarim", callback_data="back_to_bots")],

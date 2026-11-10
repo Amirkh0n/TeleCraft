@@ -23,7 +23,7 @@ async def set_webhook(token: str, webhook_url: str) -> bool:
             result = await tg_bot.set_webhook(
                 url=webhook_url,
                 max_connections=100,
-                allowed_updates=['message', 'callback_query'],
+                allowed_updates=['message', 'callback_query', 'my_chat_member'],
                 secret_token=webhook_secret(token),
             )
 

@@ -2,6 +2,7 @@
 !.gitignore
 !.env.example
 !requirements.txt
+!alembic.ini
 !README.md
 !LICENSE
 !Dockerfile

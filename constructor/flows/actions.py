@@ -26,6 +26,8 @@ async def show_action_choices(
         [InlineKeyboardButton("📝 Matn yuborish", callback_data="action_text")],
         [InlineKeyboardButton("🔗 Havola ochish", callback_data="action_link")],
         [InlineKeyboardButton("📂 Menu ochish", callback_data="action_menu")],
+        [InlineKeyboardButton("🖼 Rasm/fayl yuborish", callback_data="act:media")],
+        [InlineKeyboardButton("📋 Forma ochish", callback_data="act:form")],
         [InlineKeyboardButton("👨‍💼 Adminga yuborish", callback_data="action_admin")],
         [InlineKeyboardButton("🗑 Tugmani o‘chirish", callback_data=f"delete_button_{button_id}")],
         [InlineKeyboardButton("⬅️ Tugmalar", callback_data="back_to_buttons")],
@@ -68,7 +70,7 @@ async def handle_action_text(update: Update, context: ContextTypes.DEFAULT_TYPE)
     tg_user = update.effective_user
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
     try:
-        text = validate_text_length(update.message.text)
+        text = validate_text_length(update.message.text_html, 4000)
     except Exception:
         await update.message.reply_text("❌ Matn bo‘sh bo‘lmasin. Qayta yuboring.")
         return
@@ -111,7 +113,7 @@ async def handle_action_link(update: Update, context: ContextTypes.DEFAULT_TYPE)
     tg_user = update.effective_user
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
     try:
-        url = validate_url(update.message.text)
+        url = validate_url((update.message.text or "").strip(), "URL")
     except Exception:
         await update.message.reply_text("❌ Havola https:// bilan boshlanishi kerak. Qayta yuboring.")
         return

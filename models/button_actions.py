@@ -11,6 +11,8 @@ class ActionType(enum.Enum):
     admin = "admin"
     file = "file"
     video = "video"
+    media = "media"  # value: JSON {"type", "file_id", "caption"}
+    form = "form"    # value: form id
 
 
 class ButtonAction(Base):
