@@ -77,7 +77,7 @@ async function api(method, path, body, form) {
 }
 
 /* ------------------------------------------------------------------ state */
-const S = { bots: [], bot: null, menus: [], forms: [], menuId: null, tab: "screens", stats: null, expired: false, loading: true };
+const S = { broadcasts: null, channels: null, bots: [], bot: null, menus: [], forms: [], menuId: null, tab: "screens", stats: null, expired: false, loading: true };
 const ACTIONS = {
   text:  { title: "Xabar yuborish", hint: "Bot shu matn bilan javob beradi", icon: "text" },
   menu:  { title: "Boshqa ekranni ochish", hint: "Mijoz yangi menyuga o‘tadi", icon: "screen" },
@@ -109,7 +109,7 @@ async function loadBots() {
 }
 async function selectBot(bot) {
   const data = await api("GET", `/bots/${bot.id}`);
-  S.bot = data.bot; S.menus = data.menus; S.forms = data.forms; S.stats = null;
+  S.bot = data.bot; S.menus = data.menus; S.forms = data.forms; S.stats = null; S.broadcasts = null; S.channels = null;
   S.menuId = (S.menus.find((m) => m.is_start) || S.menus[0] || {}).id || null;
   try { localStorage.setItem("tc.bot", String(bot.id)); } catch (_) { /* optional */ }
 }
@@ -150,32 +150,45 @@ function syncBackButton() {
   if (!tg || !tg.BackButton) return;
   if (sheets.length) tg.BackButton.show(); else tg.BackButton.hide();
 }
-if (tg && tg.BackButton) tg.BackButton.onClick(() => { const top = sheets[sheets.length - 1]; if (top) top.close(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheets.length) sheets[sheets.length - 1].close(); });
+if (tg && tg.BackButton) tg.BackButton.onClick(() => { const top = sheets[sheets.length - 1]; if (top) top.requestClose(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheets.length) sheets[sheets.length - 1].requestClose(); });
 
 function openSheet({ title, body, foot, tall = false }) {
   const scrim = h("div", { class: "scrim" });
   const sheet = h("div", { class: `sheet${tall ? " tall" : ""}`, role: "dialog", "aria-modal": "true", "aria-label": title },
     h("div", { class: "sheet-head" },
       h("h3", { text: title }),
-      h("button", { class: "ghost", "aria-label": "Yopish", onClick: () => handle.close() }, icon("close"))),
+      h("button", { class: "ghost", "aria-label": "Yopish", onClick: () => handle.requestClose() }, icon("close"))),
     h("div", { class: "sheet-body" }, body),
     foot ? h("div", { class: "sheet-foot" }, foot) : null);
   const handle = {
     el: sheet,
+    dirty: false,
+    requestClose() {
+      if (!handle.dirty) { handle.close(); return; }
+      askDiscard(() => handle.close());
+    },
     close() {
       const i = sheets.indexOf(handle);
       if (i >= 0) sheets.splice(i, 1);
       scrim.remove(); sheet.remove(); syncBackButton();
     },
   };
-  scrim.addEventListener("click", () => handle.close());
+  scrim.addEventListener("click", () => handle.requestClose());
+  sheet.addEventListener("input", () => { handle.dirty = true; });
+  sheet.addEventListener("click", (e) => { if (e.target.closest(".seg button, .choice, .picker button, .switch, .fmt button")) handle.dirty = true; });
   scrim.style.zIndex = String(20 + sheets.length * 2);
   sheet.style.zIndex = String(21 + sheets.length * 2);
   document.body.append(scrim, sheet);
   sheets.push(handle);
   syncBackButton();
   return handle;
+}
+
+function askDiscard(onDiscard) {
+  const keep = h("button", { class: "btn line", onClick: () => dlg.close() }, "Tahrirni davom ettirish");
+  const drop = h("button", { class: "btn danger", onClick: () => { dlg.close(); onDiscard(); } }, "Saqlamasdan yopish");
+  const dlg = openSheet({ title: "O‘zgarishlar saqlanmagan", body: [h("p", { text: "Yopsangiz, kiritgan o‘zgarishlaringiz yo‘qoladi." })], foot: [keep, drop] });
 }
 
 async function guarded(button, task) {
@@ -285,7 +298,7 @@ function renderApp() {
       h("button", { class: "btn", onClick: () => (tg ? tg.close() : null) }, "Botga qaytish")));
     return;
   }
-  const page = S.tab === "forms" ? formsPage() : S.tab === "stats" ? statsPage() : screensPage();
+  const page = S.tab === "forms" ? formsPage() : S.tab === "stats" ? statsPage() : S.tab === "send" ? sendPage() : screensPage();
   app.replaceChildren(header(), page, tabbar());
 }
 
@@ -303,8 +316,8 @@ function header() {
 }
 
 function tabbar() {
-  const tab = (id, label, ic) => h("button", { class: "tab", "aria-current": S.tab === id, onClick: () => { S.tab = id; haptic(); renderApp(); if (id === "stats") loadStats(); } }, icon(ic), label);
-  return h("nav", { class: "tabbar", "aria-label": "Bo‘limlar" }, tab("screens", "Ekranlar", "screen"), tab("forms", "Formalar", "form"), tab("stats", "Auditoriya", "chart"));
+  const tab = (id, label, ic) => h("button", { class: "tab", "aria-current": S.tab === id, onClick: () => { S.tab = id; haptic(); renderApp(); if (id === "stats") loadStats(); if (id === "send") loadBroadcasts(); } }, icon(ic), label);
+  return h("nav", { class: "tabbar", "aria-label": "Bo‘limlar" }, tab("screens", "Ekranlar", "screen"), tab("forms", "Formalar", "form"), tab("send", "Tarqatish", "send"), tab("stats", "Auditoriya", "chart"));
 }
 
 function openBotPicker() {
@@ -343,10 +356,12 @@ function screensPage() {
     const kb = stage.querySelector(".replykb");
     kb.replaceChildren(...menu.buttons.map((b) => keyEl(b, menu)), h("button", { class: "key add", onClick: () => openNewButton(menu) }, icon("plus"), h("span", { text: "Tugma" })));
   }
+  enableReorder(stage.querySelector(".keys, .replykb"), menu);
   return h("div", { class: "page", style: "padding-left:0;padding-right:0" }, chips,
     h("div", { class: "stage-wrap" }, stage),
     h("div", { class: "legend" },
       h("span", { text: reply ? "Pastki klaviatura rejimi" : "Tugmalar xabar ostida" }),
+      menu.buttons.length > 1 ? h("span", { text: "Tugmani bosib turib sudrang: joyi almashadi" }) : null,
       todo ? h("span", {}, h("i"), "Punktir — tugma bosilganda nima bo‘lishi tanlanmagan") : null));
 }
 
@@ -361,7 +376,7 @@ function bubbleEl(menu) {
 function keyEl(button, menu) {
   const lead = button.kind === "contact" ? icon("phone") : button.kind === "location" ? icon("pin") : null;
   const badge = button.action && BADGE[button.action.type] && menu.keyboard_mode === "inline" ? h("span", { class: "badge" }, icon(BADGE[button.action.type])) : null;
-  return h("button", { class: `key${button.action ? "" : " todo"}`, onClick: () => openButtonSheet(button, menu) }, lead, h("span", { text: button.text }), badge);
+  return h("button", { class: `key${button.action ? "" : " todo"}`, "data-id": button.id, onClick: () => openButtonSheet(button, menu) }, lead, h("span", { text: button.text }), badge);
 }
 function emptyArt() {
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -617,7 +632,13 @@ function openSubmissions(form) {
 }
 
 /* ---- stats tab */
+async function loadChannels() {
+  if (S.channels || !S.bot) return;
+  try { S.channels = await api("GET", `/bots/${S.bot.id}/channels`); } catch (err) { toast(err.message, true); return; }
+  if (S.tab === "stats") renderApp();
+}
 async function loadStats() {
+  loadChannels();
   if (S.stats || !S.bot) return;
   try { S.stats = await api("GET", `/bots/${S.bot.id}/stats`); } catch (err) { toast(err.message, true); return; }
   if (S.tab === "stats") renderApp();
@@ -626,7 +647,7 @@ function statsPage() {
   const s = S.stats;
   if (!s) return h("div", { class: "page" }, h("div", { class: "splash", style: "min-height:50dvh" }, h("div", { class: "spin" })));
   if (!s.total) {
-    return h("div", { class: "page" }, h("h2", { text: "Auditoriya" }), h("div", { class: "empty" }, emptyArt(), h("h3", { text: "Hali hech kim yozmagan" }),
+    return h("div", { class: "page" }, h("h2", { text: "Auditoriya" }), channelsSection(), h("div", { class: "empty" }, emptyArt(), h("h3", { text: "Hali hech kim yozmagan" }),
       h("p", { text: "Botga /start yuboring yoki havolani ulashing — foydalanuvchilar shu yerda hisoblanadi." }),
       S.bot.link ? h("button", { class: "btn", onClick: () => (tg ? tg.openTelegramLink(S.bot.link) : window.open(S.bot.link, "_blank")) }, icon("out"), "Botni ochish") : null));
   }
@@ -642,7 +663,171 @@ function statsPage() {
       h("div", { class: "fact" }, h("b", { text: s.broadcast_messages }), h("small", { text: "xabar yuborilgan" })),
       h("div", { class: "fact" }, h("b", { text: s.sources.length }), h("small", { text: "havola manbasi" }))),
     s.sources.length ? h("div", { class: "bars", style: "margin-top:14px" }, ...s.sources.map(([name, n]) => h("div", { class: "bar", style: "grid-template-columns:1fr 40px" }, h("span", { text: name }), h("b", { text: n })))) : null,
-    h("div", { class: "note", style: "margin-top:14px", text: "Hammaga xabar yuborish va majburiy obuna sozlamalari hozircha konstruktor botda: Bot boshqaruvi → Broadcast / Majburiy obuna." }));
+    channelsSection());
+}
+
+/* ---- drag to reorder buttons on the stage (press and hold, then move) */
+function enableReorder(container, menu) {
+  if (!container) return;
+  let timer = null; let drag = null; let swallow = false; let origin = null;
+  const keys = () => [...container.querySelectorAll(".key:not(.add)")];
+  container.addEventListener("pointerdown", (e) => {
+    const key = e.target.closest(".key:not(.add)");
+    if (!key || e.button > 0) return;
+    origin = { x: e.clientX, y: e.clientY };
+    timer = setTimeout(() => { drag = key; key.classList.add("lift"); haptic("medium"); }, 380);
+  });
+  container.addEventListener("pointermove", (e) => {
+    if (!drag) { if (timer && origin && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > 9) { clearTimeout(timer); timer = null; } return; }
+    const over = document.elementFromPoint(e.clientX, e.clientY);
+    const target = over && over.closest(".key:not(.add)");
+    if (!target || target === drag || !container.contains(target)) return;
+    const list = keys();
+    if (list.indexOf(drag) < list.indexOf(target)) target.after(drag); else target.before(drag);
+  });
+  container.addEventListener("touchmove", (e) => { if (drag) e.preventDefault(); }, { passive: false });
+  const finish = () => {
+    clearTimeout(timer); timer = null;
+    if (!drag) return;
+    drag.classList.remove("lift"); drag = null; swallow = true; setTimeout(() => { swallow = false; }, 60);
+    const ids = keys().map((k) => Number(k.dataset.id));
+    if (ids.join() === menu.buttons.map((b) => b.id).join()) return;
+    guarded(null, async () => { replaceMenu(await api("PUT", `/menus/${menu.id}/buttons/order`, { ids })); toast("Tartib saqlandi"); }).then(renderApp);
+  };
+  container.addEventListener("pointerup", finish);
+  container.addEventListener("pointercancel", finish);
+  container.addEventListener("click", (e) => { if (swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+
+/* ---- channels people must join first */
+function channelsSection() {
+  const list = S.channels;
+  const rows = (list || []).map((c) => h("div", { class: "qrow" },
+    h("span", { class: "ico" }, icon("send")),
+    h("span", { class: "grow" }, h("b", { text: c.title }), h("small", { text: c.username ? `@${c.username}` : "Yopiq kanal" })),
+    h("button", { class: "ghost", "aria-label": "Olib tashlash", onClick: () => confirmDelete(`“${c.title}” kanali majburiy obunadan`, async () => {
+      await api("DELETE", `/channels/${c.id}`); S.channels = S.channels.filter((x) => x.id !== c.id); renderApp(); toast("O‘chirildi");
+    }) }, icon("trash"))));
+  return h("div", { class: "section" },
+    h("h3", { text: "Majburiy obuna" }),
+    h("p", { class: "hint", text: "Mijoz bu kanallarga a‘zo bo‘lmaguncha botdan foydalana olmaydi. Avval botni kanalga administrator qiling." }),
+    list === null ? h("div", { class: "spin" }) : (rows.length ? h("div", { class: "sub-list" }, rows) : null),
+    list && list.length < 5 ? h("button", { class: "btn soft block", onClick: openAddChannel }, icon("plus"), "Kanal qo‘shish") : null);
+}
+function openAddChannel() {
+  const ref = h("input", { class: "input", placeholder: "@kanal_nomi yoki t.me/kanal_nomi", autocapitalize: "none" });
+  const invite = h("input", { class: "input", type: "url", placeholder: "https://t.me/+…", inputmode: "url" });
+  const inviteField = field("Taklif havolasi", invite, "Yopiq kanal uchun: kanal sozlamalaridan havolani nusxalang.");
+  inviteField.hidden = true;
+  const add = h("button", { class: "btn", onClick: () => guarded(add, async () => {
+    if (!ref.value.trim()) { toast("Kanal manzilini yozing.", true); return; }
+    try {
+      const channel = await api("POST", `/bots/${S.bot.id}/channels`, { ref: ref.value.trim(), invite_link: invite.value.trim() || null });
+      S.channels.push(channel); sheet.close(); renderApp(); toast("Kanal qo‘shildi"); notify("success");
+    } catch (err) {
+      if (/taklif havolasi/i.test(err.message)) inviteField.hidden = false;
+      throw err;
+    }
+  }) }, "Qo‘shish");
+  const sheet = openSheet({ title: "Kanal qo‘shish", body: [
+    field("Kanal manzili", ref, "Bot shu kanalda administrator bo‘lishi shart: shunda a‘zolikni tekshira oladi."), inviteField], foot: [add] });
+  setTimeout(() => ref.focus(), 120);
+}
+
+/* ---- broadcasts */
+const BC_STATUS = { draft: "Qoralama", sending: "Yuborilmoqda", done: "Tugadi", cancelled: "To‘xtatildi" };
+async function loadBroadcasts() {
+  if (!S.bot) return;
+  try { S.broadcasts = await api("GET", `/bots/${S.bot.id}/broadcasts`); } catch (err) { toast(err.message, true); return; }
+  if (S.tab === "send") renderApp();
+}
+function plain(html) { const d = document.createElement("div"); renderTelegramHtml(d, html || ""); return d.textContent.replace(/\s+/g, " ").trim(); }
+
+function sendPage() {
+  const data = S.broadcasts;
+  if (!data) return h("div", { class: "page" }, h("div", { class: "splash", style: "min-height:50dvh" }, h("div", { class: "spin" })));
+  const rows = data.items.map((b) => h("button", { class: "row", onClick: () => (b.status === "draft" ? openComposer(b) : openBroadcastStatus(b)) },
+    h("div", { class: "ico" }, icon(b.status === "done" ? "check" : "send")),
+    h("div", { class: "grow" }, h("b", { text: plain(b.text) || (b.media_type ? MEDIA_NAMES[b.media_type] : "Matnsiz xabar") }),
+      h("small", { text: b.status === "draft" ? "Qoralama" : `${BC_STATUS[b.status]} · ${b.sent}/${b.total}` })), icon("chev")));
+  return h("div", { class: "page" }, h("h2", { text: "Tarqatish" }),
+    h("p", { class: "lead", text: data.audience ? `Xabar botni bloklamagan ${data.audience} kishiga yuboriladi.` : "Hozircha xabar yuboriladigan foydalanuvchi yo‘q: botga birinchi mijozlar kelgach shu yerda yuborasiz." }),
+    h("button", { class: "btn block", style: "margin-bottom:16px", onClick: () => openComposer(null) }, icon("plus"), "Yangi xabar"),
+    rows.length ? h("div", { class: "list" }, rows) : h("div", { class: "empty" }, emptyArt(), h("h3", { text: "Hali xabar yuborilmagan" }), h("p", { text: "Aksiya, yangilik yoki eslatmani hammaga bir martada yuboring." })));
+}
+
+function openComposer(existing) {
+  let draft = existing || null;
+  const rich = richArea(draft ? draft.text || "" : "", { rows: 6, placeholder: "Mijozlarga yuboriladigan xabar" });
+  const label = h("input", { class: "input", placeholder: "Tugma yozuvi, masalan: Batafsil", value: draft ? draft.button_text || "" : "", maxlength: "64" });
+  const url = h("input", { class: "input", type: "url", inputmode: "url", placeholder: "https://…", value: draft ? draft.button_url || "" : "" });
+  const preview = h("div", { class: "stage mini" });
+  const paintPreview = () => {
+    const text = h("div", { class: "text" });
+    if (rich.area.value.trim()) renderTelegramHtml(text, rich.area.value); else text.append(h("span", { class: "placeholder", text: "Xabar matni shu yerda ko‘rinadi" }));
+    preview.replaceChildren(h("div", { class: "chat" }, h("div", { class: "bubble-wrap" },
+      h("div", { class: `bubble${draft && draft.media_type ? " has-media" : ""}` }, draft && draft.media_type ? h("div", { class: "media" }, icon("image"), MEDIA_NAMES[draft.media_type] || "Fayl") : null, text),
+      label.value.trim() && url.value.trim() ? h("div", { class: "keys c1" }, h("div", { class: "key" }, h("span", { text: label.value.trim() }), h("span", { class: "badge" }, icon("out")))) : null)));
+  };
+  const body = () => ({ text: rich.area.value, button_text: label.value.trim(), button_url: url.value.trim() });
+  const ensureDraft = async () => {
+    draft = draft ? await api("PATCH", `/broadcasts/${draft.id}`, body()) : await api("POST", `/bots/${S.bot.id}/broadcasts`, body());
+    return draft;
+  };
+  const media = mediaPicker({
+    current: draft && draft.media_type, accept: "image/*,video/*,audio/*,application/pdf",
+    onFile: async (file) => { await ensureDraft(); const form = new FormData(); form.append("file", file); draft = await api("POST", `/broadcasts/${draft.id}/media`, undefined, form); paintPreview(); return draft.media_type; },
+    onRemove: async () => { draft = await api("DELETE", `/broadcasts/${draft.id}/media`); paintPreview(); },
+  });
+  sheetInputs(rich.area, label, url).forEach((el) => el.addEventListener("input", paintPreview));
+  paintPreview();
+
+  const check = () => { if (!rich.area.value.trim() && !(draft && draft.media_type)) { toast("Matn yozing yoki media biriktiring.", true); return false; } return true; };
+  const test = h("button", { class: "btn line", onClick: () => guarded(test, async () => {
+    if (!check()) return;
+    await ensureDraft(); await api("POST", `/broadcasts/${draft.id}/preview`); toast("Xabar sizga yuborildi"); notify("success");
+  }) }, "O‘zimga yuborish");
+  const send = h("button", { class: "btn", onClick: () => guarded(send, async () => {
+    if (!check()) return;
+    await ensureDraft();
+    const size = S.broadcasts ? S.broadcasts.audience : 0;
+    const confirm = openSheet({ title: "Yuborishni tasdiqlang", body: [h("p", { text: `Xabar ${size} kishiga yuboriladi. Yuborib bo‘lgach qaytarib bo‘lmaydi.` })],
+      foot: [h("button", { class: "btn line", onClick: () => confirm.close() }, "Ortga"),
+        h("button", { class: "btn", onClick: (e) => guarded(e.currentTarget, async () => {
+          const started = await api("POST", `/broadcasts/${draft.id}/send`);
+          confirm.close(); sheet.close(); await loadBroadcasts(); notify("success"); openBroadcastStatus(started);
+        }) }, `Yuborish (${size})`)] });
+  }) }, "Yuborish");
+  const sheet = openSheet({ title: existing ? "Qoralama" : "Yangi xabar", tall: true, foot: [test, send], body: [
+    field("Ko‘rinishi", preview), field("Xabar matni", rich.node), field("Media", media, "Rasm, video yoki fayl xabar bilan birga boradi."),
+    field("Havola tugmasi (ixtiyoriy)", h("div", { class: "sub-list" }, label, url))] });
+}
+function sheetInputs(...els) { return els; }
+
+function openBroadcastStatus(item) {
+  const bar = h("div", { class: "fill" });
+  const counts = h("div", { class: "facts" });
+  const status = h("p", { class: "lead" });
+  const stop = h("button", { class: "btn danger", onClick: () => guarded(stop, async () => { paint(await api("POST", `/broadcasts/${item.id}/cancel`)); loadBroadcasts(); }) }, "To‘xtatish");
+  const foot = [stop];
+  let timer = null;
+  const paint = (b) => {
+    const done = b.sent + b.failed + b.blocked; const pct = b.total ? Math.round((done / b.total) * 100) : (b.status === "done" ? 100 : 0);
+    bar.style.width = `${pct}%`;
+    status.textContent = `${BC_STATUS[b.status]} · ${done}/${b.total}`;
+    counts.replaceChildren(...[["Yetkazildi", b.sent], ["Bloklagan", b.blocked], ["Xato", b.failed]].map(([l, n]) => h("div", { class: "fact" }, h("b", { text: n }), h("small", { text: l }))));
+    stop.hidden = b.status !== "sending";
+    if (b.status !== "sending") { clearInterval(timer); timer = null; }
+  };
+  const sheet = openSheet({ title: `Xabar #${item.id}`, body: [status, h("div", { class: "bars" }, h("div", { class: "track" }, bar)), counts,
+    item.text ? h("div", { class: "answer", text: plain(item.text) }) : null], foot });
+  paint(item);
+  if (item.status === "sending") {
+    timer = setInterval(async () => {
+      if (!document.body.contains(sheet.el)) { clearInterval(timer); return; }
+      try { paint(await api("GET", `/broadcasts/${item.id}`)); } catch (_) { /* keep trying */ }
+    }, 2500);
+  }
 }
 
 /* ------------------------------------------------------------------ boot */

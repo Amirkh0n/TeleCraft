@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from core.database import AsyncSessionLocal, db_config, init_models
 from webhook.handler import router as webhook_router
 from webapp.api import router as webapp_router
+from webapp.api_audience import router as webapp_audience_router
 from core.logger import logger
 from core.rate_limit import rate_limit_middleware
 from core.config import settings
@@ -292,4 +293,5 @@ async def constructor_webhook(request: Request):
 
 app.include_router(webhook_router)
 app.include_router(webapp_router)
+app.include_router(webapp_audience_router)
 app.mount("/app", StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "webapp", "static"), html=True), name="miniapp")

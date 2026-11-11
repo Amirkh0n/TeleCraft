@@ -147,7 +147,7 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .legend i { display: inline-block; width: 14px; height: 10px; border: 2px dashed var(--saffron); border-radius: 4px; vertical-align: -1px; margin-right: 6px; }
 
 /* ---------- tab bar ---------- */
-.tabbar { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); z-index: 5; }
+.tabbar { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); z-index: 5; }
 .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border-radius: 12px; color: var(--ink-2); font-size: 12px; font-weight: 500; }
 .tab[aria-current="true"] { color: var(--cobalt); }
 .tab[aria-current="true"] svg.i { stroke-width: 2.3; }
@@ -264,3 +264,17 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
 .row > svg.i:last-child, .qrow > svg.i:last-child { transform: rotate(-90deg); color: var(--ink-2); }
+
+.section { margin-top: 22px; display: grid; gap: 10px; }
+.section h3 { font: 700 18px var(--font-head); letter-spacing: -0.015em; margin: 0; }
+.section .hint { color: var(--ink-2); font-size: 13.5px; margin: 0; }
+.key.lift { transform: scale(1.06); z-index: 3; box-shadow: 0 8px 22px rgba(0, 0, 0, .35); background: var(--cobalt); color: var(--on-cobalt); transition: none; touch-action: none; }
+.key { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.stage.mini { min-height: 0; border-radius: 18px; box-shadow: none; }
+.stage.mini .chat { padding: 14px 12px; }
+.stage.mini .bubble { cursor: default; }
+.stage.mini .bubble:hover { outline: none; }
+.stage.mini .key { cursor: default; }
+.bars .track { height: 12px; }
+.bars .track .fill { transition: width .4s ease; background: var(--turquoise); }
+.tab { font-size: 11.5px; }
