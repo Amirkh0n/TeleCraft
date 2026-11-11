@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, JSON, false
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, JSON, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
@@ -39,6 +39,10 @@ class UserSession(Base):
     reply_keyboard_active: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false(), nullable=False
     )
+
+    # Small state machine used by cinema admins (e.g. "await_video"); None when idle.
+    state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    state_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     bot = relationship("Bot")
     menu = relationship("Menu")

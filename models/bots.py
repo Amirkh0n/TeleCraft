@@ -61,6 +61,11 @@ class Bot(Base):
         default=False
     )
 
+    # "standard" (menus/buttons) or "cinema" (movie catalogue managed from inside the bot)
+    kind: Mapped[str] = mapped_column(
+        String(20), default="standard", server_default="standard", nullable=False
+    )
+
     # Relationship
     owner = relationship("User", backref="bots")
 

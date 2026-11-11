@@ -39,6 +39,9 @@ class FakeTG:
     async def answer_callback_query(self, *a, **kw):
         return self._record("answer_callback_query", id=a[0] if a else None)
 
+    async def edit_message_text(self, **kw):
+        return self._record("edit_message_text", **kw)
+
     async def delete_message(self, **kw):
         return self._record("delete_message", **kw)
 
