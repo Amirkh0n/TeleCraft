@@ -376,3 +376,25 @@ formalar va auditoriya statistikasi shu yerda.
 - Manzil: `/app/`, API: `/api/v1/…`. Qurish bosqichi yo‘q: `webapp/static/` dagi oddiy HTML/CSS/JS.
 - Muharrirda to‘rt bo‘lim: Ekranlar, Formalar, Tarqatish (broadcast: ko‘rinishini ko‘rish, o‘zingizga sinov yuborish, jarayonni kuzatish) va Auditoriya (statistika + majburiy obuna kanallari).
 - Tugmalarni bosib turib sudrab tartiblash mumkin; saqlanmagan o‘zgarishlar yopishdan oldin ogohlantiriladi.
+- Broadcast va majburiy obuna hozircha konstruktor bot ichida; muharrirga keyingi bosqichda ko‘chiriladi.
+
+## Kino bot rejimi
+
+Bot panelidagi **🎬 Kino bot** tugmasi botni kino katalogiga aylantiradi.
+
+- **Tomoshabin**: kino *kodini* (masalan `105`) yoki *nomining bir qismini* yozadi — bot videoni yuboradi. Nom bo‘yicha qidirishda natijalar tugma ko‘rinishida chiqadi. Majburiy obuna kino botda ham ishlaydi.
+- **Saqlash**: kino videosi Telegram `file_id` sifatida saqlanadi va shu `file_id` orqali yuboriladi (fayl serverda saqlanmaydi). `file_id` har bir bot uchun alohida, shuning uchun kino **child botning o‘ziga** yuboriladi.
+- **Adminlar child botning o‘zida kinolarni boshqaradi** (CRUD): `/admin` → ➕ qo‘shish (video → kod → nom → tavsif), 📋 ro‘yxat (sahifalash), tahrirlash (nom, kod, tavsif, faylni almashtirish), o‘chirish (tasdiq bilan), 📊 statistika (eng ko‘p ko‘rilganlar). `/cancel` joriy amalni bekor qiladi, `/auto` keyingi bo‘sh kodni beradi.
+- **Admin qo‘shish asosiy (constructor) bot orqali**: bot paneli → **👮 Adminlar** → Telegram ID yuborish. Bot egasi har doim adminlik huquqiga ega.
+- Rejimni o‘chirsangiz oddiy menyu/tugmalar qaytadi, kinolar bazada saqlanib qoladi.
+
+Texnik: migratsiya `0004_cinema` (faqat qo‘shimcha: `movies`, `bots.kind`, `user_sessions.state/state_data`), mantiq `engine/cinema.py`, constructor tomoni `constructor/flows/cinema.py`.
+
+### Kino bot: deep link, kanal e’loni, himoya
+
+- **Deep link**: `t.me/<bot>?start=<kino kodi>` kinoni darrov yuboradi (obuna tekshiruvidan keyin). Kirish manbai auditoriya statistikasida (`source`) ko‘rinadi.
+- **Kino kanal** (asosiy bot → 🎬 Kino bot → 📢 Kino kanal): ulash, almashtirish, uzish. Child bot kanalda administrator bo‘lishi shart. Kino rejimi yoqilganda kanal darhol so‘raladi.
+- **E’lon**: yangi kino qo‘shilganda kanalga *poster + matn (nom, tavsif, kod) + «🎬 Tomosha qilish» tugmasi* yuboriladi (video emas). Poster kino qo‘shishda so‘raladi (`/skip` — rasmsiz matn e’loni). Kino kartasidagi «📢 Kanalga yuborish» e’lonni qayta yuboradi.
+- **Himoya**: video `protect_content=True` bilan yuboriladi (forward va saqlash cheklanadi).
+- **Majburiy obuna va broadcast** kino botda ham ishlaydi: foydalanuvchilar auditoriyaga yoziladi, adminlar obunadan ozod.
+- Migratsiya: `0005_cinema_channel` (faqat qo‘shimcha).

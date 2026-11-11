@@ -7,7 +7,7 @@ from collections import OrderedDict
 from telegram.error import Forbidden
 
 from core.logger import get_logger
-from engine import forms
+from engine import cinema, forms
 from engine.audience import set_blocked, touch_user
 from engine.actions import execute_action, get_user_session
 from engine.resolver import (
@@ -76,6 +76,8 @@ async def route_update(bot, update, session, *, client=None):
         async with _user_lock(bot.id, _sender_id(update)):
             if update.get("my_chat_member"):
                 await _on_membership(bot, update["my_chat_member"], session)
+            elif getattr(bot, "kind", "standard") == "cinema":
+                await cinema.handle(bot, update, session, tg)
             elif update.get("callback_query"):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):

@@ -8,6 +8,7 @@ from .user_sessions import UserSession
 from .admin_links import AdminLink
 from .constructor_sessions import ConstructorSession
 from .forms import Form, FormField, FormSubmission
+from .movies import Movie
 from .audience import BotUser, RequiredChannel, Broadcast
 from .analytics import AnalyticsEvent, BotStats, UserStats, BotMetrics
 from .schemas import AnalyticsEvent as SchemaAnalyticsEvent, BotStats as SchemaBotStats

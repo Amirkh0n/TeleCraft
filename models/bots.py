@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, ForeignKey
+from sqlalchemy import BigInteger, String, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from .base import Base
 from core.security import encrypt_token, decrypt_token, token_hash, is_encrypted
@@ -60,6 +60,15 @@ class Bot(Base):
         Boolean,
         default=False
     )
+
+    # "standard" (menus/buttons) or "cinema" (movie catalogue managed from inside the bot)
+    kind: Mapped[str] = mapped_column(
+        String(20), default="standard", server_default="standard", nullable=False
+    )
+
+    # Cinema bots: channel where every new movie is announced (bot must be its administrator).
+    movie_channel_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    movie_channel_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Relationship
     owner = relationship("User", backref="bots")
