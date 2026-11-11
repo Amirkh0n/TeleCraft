@@ -387,3 +387,12 @@ Bot panelidagi **🎬 Kino bot** tugmasi botni kino katalogiga aylantiradi.
 - Rejimni o‘chirsangiz oddiy menyu/tugmalar qaytadi, kinolar bazada saqlanib qoladi.
 
 Texnik: migratsiya `0004_cinema` (faqat qo‘shimcha: `movies`, `bots.kind`, `user_sessions.state/state_data`), mantiq `engine/cinema.py`, constructor tomoni `constructor/flows/cinema.py`.
+
+### Kino bot: deep link, kanal e’loni, himoya
+
+- **Deep link**: `t.me/<bot>?start=<kino kodi>` kinoni darrov yuboradi (obuna tekshiruvidan keyin). Kirish manbai auditoriya statistikasida (`source`) ko‘rinadi.
+- **Kino kanal** (asosiy bot → 🎬 Kino bot → 📢 Kino kanal): ulash, almashtirish, uzish. Child bot kanalda administrator bo‘lishi shart. Kino rejimi yoqilganda kanal darhol so‘raladi.
+- **E’lon**: yangi kino qo‘shilganda kanalga *poster + matn (nom, tavsif, kod) + «🎬 Tomosha qilish» tugmasi* yuboriladi (video emas). Poster kino qo‘shishda so‘raladi (`/skip` — rasmsiz matn e’loni). Kino kartasidagi «📢 Kanalga yuborish» e’lonni qayta yuboradi.
+- **Himoya**: video `protect_content=True` bilan yuboriladi (forward va saqlash cheklanadi).
+- **Majburiy obuna va broadcast** kino botda ham ishlaydi: foydalanuvchilar auditoriyaga yoziladi, adminlar obunadan ozod.
+- Migratsiya: `0005_cinema_channel` (faqat qo‘shimcha).

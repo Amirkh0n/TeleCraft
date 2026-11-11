@@ -41,6 +41,7 @@ async def add_movie(env, code="101", title="Titanik", file_id="F1", desc=None, u
     await send(env, message("/admin", user=user))
     await send(env, cb("cm:add", user=user))
     await send(env, video(file_id, user=user))
+    await send(env, message("/skip", user=user))
     await send(env, message(code, user=user))
     await send(env, message(title, user=user))
     await send(env, message(desc or "/skip", user=user))
@@ -100,6 +101,7 @@ async def test_duplicate_code_rejected_and_auto_code(cinema):
     await add_movie(cinema, "101")
     await send(cinema, cb("cm:add"))
     await send(cinema, video("F9"))
+    await send(cinema, message("/skip"))
     await send(cinema, message("101"))
     assert "band" in cinema.tg.last()["text"]
     await send(cinema, message("/auto"))
@@ -113,6 +115,7 @@ async def test_invalid_code_and_text_instead_of_video(cinema):
     await send(cinema, message("salom"))
     assert "Video" in cinema.tg.last()["text"]
     await send(cinema, video())
+    await send(cinema, message("/skip"))
     await send(cinema, message("bad code!"))
     assert "faqat" in cinema.tg.last()["text"]
 
@@ -188,3 +191,119 @@ async def test_bad_file_id_reports_error(cinema):
     await send(cinema, message("101", user=USER))
     assert "yuborib bo‘lmadi" in cinema.tg.last()["text"]
     assert (await movies(cinema))[0].views == 0
+
+
+# ---------------------------------------------------------------- deep link, channel, protect, audience
+
+async def set_channel(env, chat_id=-1001, username="kinobot"):
+    env.bot.movie_channel_id = chat_id
+    env.bot.username = username
+    await env.session.commit()
+
+
+async def test_deep_link_sends_movie_and_records_source(cinema):
+    await add_movie(cinema)
+    await send(cinema, message("/start 101", user=USER))
+    assert cinema.tg.last("send_video")["video"] == "F1"
+    from models.audience import BotUser
+    bu = (await cinema.session.execute(select(BotUser).where(BotUser.tg_user_id == USER))).scalar_one()
+    assert bu.source == "101"
+
+
+async def test_deep_link_unknown_code_falls_back_to_welcome(cinema):
+    await send(cinema, message("/start nope", user=USER))
+    texts = cinema.tg.texts(USER)
+    assert "topilmadi" in texts[-2] and "xush kelibsiz" in texts[-1]
+    assert not cinema.tg.of("send_video")
+
+
+async def test_video_is_protected(cinema):
+    await add_movie(cinema)
+    await send(cinema, message("101", user=USER))
+    assert cinema.tg.last("send_video")["protect_content"] is True
+
+
+async def test_new_movie_is_announced_in_channel_with_poster_and_deep_link(cinema):
+    await set_channel(cinema)
+    await send(cinema, message("/admin"))
+    await send(cinema, cb("cm:add"))
+    await send(cinema, video("V1"))
+    await send(cinema, message(photo=[{"file_id": "small"}, {"file_id": "BIG"}]))
+    await send(cinema, message("7"))
+    await send(cinema, message("Rasmli kino"))
+    await send(cinema, message("Komediya"))
+    post = cinema.tg.last("send_photo")
+    assert post["chat_id"] == -1001 and post["photo"] == "BIG"
+    assert "Rasmli kino" in post["caption"] and "Komediya" in post["caption"] and "<code>7</code>" in post["caption"]
+    button = post["reply_markup"].inline_keyboard[0][0]
+    assert button.url == "https://t.me/kinobot?start=7"
+    assert not [c for c in cinema.tg.of("send_video") if c["chat_id"] == -1001]
+    assert "Kanalga yuborildi" in cinema.tg.last()["text"]
+
+
+async def test_announcement_without_poster_is_text_and_failure_does_not_lose_movie(cinema):
+    await set_channel(cinema)
+    await add_movie(cinema)
+    assert cinema.tg.last("send_message", ) and [c for c in cinema.tg.of("send_message") if c["chat_id"] == -1001]
+    from telegram.error import Forbidden
+
+    async def boom(**kw):
+        raise Forbidden("not enough rights")
+    cinema.tg.send_message_orig = cinema.tg.send_message
+    real = cinema.tg.send_message
+
+    async def selective(**kw):
+        if kw.get("chat_id") == -1001:
+            raise Forbidden("not enough rights")
+        return await real(**kw)
+    cinema.tg.send_message = selective
+    await add_movie(cinema, "102", "Ikkinchi", "F2")
+    assert len(await movies(cinema)) == 2
+    assert "administrator" in cinema.tg.last()["text"]
+
+
+async def test_manual_repost_and_poster_edit(cinema):
+    await set_channel(cinema)
+    await add_movie(cinema)
+    mid = (await movies(cinema))[0].id
+    await send(cinema, cb(f"cm:edit:{mid}:poster"))
+    await send(cinema, message(photo=[{"file_id": "P2"}]))
+    assert (await movies(cinema))[0].poster_file_id == "P2"
+    await send(cinema, cb(f"cm:post:{mid}"))
+    assert cinema.tg.last("send_photo")["photo"] == "P2"
+
+
+async def test_cinema_users_are_recorded_so_broadcast_reaches_them(cinema):
+    from engine import broadcast
+    await add_movie(cinema)
+    await send(cinema, message("hello", user=USER))
+    await send(cinema, cb("mv:1", user=888))
+    from models.audience import BotUser
+    ids = {b.tg_user_id for b in (await cinema.session.execute(select(BotUser))).scalars().all()}
+    assert {USER, 888} <= ids
+    from test_broadcast import run
+    draft = await broadcast.create_draft(cinema.session, cinema.bot.id, OWNER, text="Yangi kinolar!")
+    assert await broadcast.start(cinema.session, draft.id, spawn=False) == "started"
+    await run(cinema, draft)
+    got = {c["chat_id"] for c in cinema.tg.of("send_message") if c["text"] == "Yangi kinolar!"}
+    assert {USER, 888} <= got
+
+
+async def test_forced_subscription_gates_cinema_viewers_but_not_admins(cinema):
+    from models.audience import RequiredChannel
+
+    class Member:
+        status = "left"
+
+    async def get_chat_member(**kw):
+        return Member()
+    cinema.tg.get_chat_member = get_chat_member
+    cinema.session.add(RequiredChannel(bot_id=cinema.bot.id, chat_id=-5, title="Kanal", username="kan"))
+    await cinema.session.commit()
+    await add_movie(cinema)
+    await send(cinema, message("101", user=USER))
+    assert not cinema.tg.of("send_video") and "obuna" in cinema.tg.last()["text"]
+    await send(cinema, message("/start 101", user=USER))
+    assert not cinema.tg.of("send_video")
+    await send(cinema, message("101", user=OWNER))
+    assert cinema.tg.last("send_video")["chat_id"] == OWNER

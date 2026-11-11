@@ -50,6 +50,8 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(form_flows.use_form, pattern=r"^frm:use:\d+$"))
     app.add_handler(CallbackQueryHandler(cin.cinema_home, pattern=r"^cin:home$"))
     app.add_handler(CallbackQueryHandler(cin.cinema_toggle, pattern=r"^cin:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(cin.channel_click, pattern=r"^cin:ch$"))
+    app.add_handler(CallbackQueryHandler(cin.channel_delete, pattern=r"^cin:chdel$"))
     app.add_handler(CallbackQueryHandler(cin.admins_home, pattern=r"^adm:home$"))
     app.add_handler(CallbackQueryHandler(cin.admin_add_click, pattern=r"^adm:add$"))
     app.add_handler(CallbackQueryHandler(cin.admin_delete, pattern=r"^adm:del:\d+$"))

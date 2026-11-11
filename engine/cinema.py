@@ -10,11 +10,12 @@ import re
 
 from sqlalchemy import delete, func, select
 from telegram import InlineKeyboardButton as Btn, InlineKeyboardMarkup as Markup
-from telegram.error import BadRequest
+from telegram.error import BadRequest, TelegramError
 
 from core.logger import get_logger
 from engine import subscription
 from engine.actions import get_user_session
+from engine.audience import touch_user
 from models.admin_links import AdminLink
 from models.audience import BotUser
 from models.menus import Menu
@@ -30,7 +31,7 @@ CODE_RE = re.compile(r"^[\w-]{1,32}$", re.UNICODE)
 WELCOME = "🎬 Kino botga xush kelibsiz!\n\nKino <b>kodini</b> yuboring yoki <b>nomini</b> yozib qidiring."
 
 # admin states
-ADD_VIDEO, ADD_CODE, ADD_TITLE, ADD_DESC = "add_video", "add_code", "add_title", "add_desc"
+ADD_VIDEO, ADD_POSTER, ADD_CODE, ADD_TITLE, ADD_DESC = "add_video", "add_poster", "add_code", "add_title", "add_desc"
 EDIT_PREFIX = "edit_"  # edit_title / edit_code / edit_desc / edit_file
 
 
@@ -103,9 +104,11 @@ async def send_movie(tg, session, movie, chat_id: int, *, protect: bool = False)
     caption = caption_of(movie)
     try:
         if movie.file_type == "document":
-            await tg.send_document(chat_id=chat_id, document=movie.file_id, caption=caption, parse_mode="HTML")
+            await tg.send_document(chat_id=chat_id, document=movie.file_id, caption=caption, parse_mode="HTML",
+                                   protect_content=True)
         else:
-            await tg.send_video(chat_id=chat_id, video=movie.file_id, caption=caption, parse_mode="HTML")
+            await tg.send_video(chat_id=chat_id, video=movie.file_id, caption=caption, parse_mode="HTML",
+                                protect_content=True)
     except BadRequest as exc:
         logger.warning("movie %s: file_id rejected (%s)", movie.id, exc)
         await tg.send_message(chat_id=chat_id, text="⚠️ Bu kinoni yuborib bo‘lmadi. Keyinroq urinib ko‘ring.")
@@ -113,6 +116,26 @@ async def send_movie(tg, session, movie, chat_id: int, *, protect: bool = False)
     await session.execute(Movie.__table__.update().where(Movie.id == movie.id).values(views=Movie.views + 1))
     await session.commit()
     return True
+
+
+async def post_to_channel(tg, bot, movie) -> str | None:
+    """Announce a movie in the bot's channel (poster + text + a «watch» deep-link button; never the
+    video itself). Returns a user-facing problem, or ``None`` on success."""
+    if not bot.movie_channel_id:
+        return "Kino kanal ulanmagan."
+    try:
+        username = bot.username or (await tg.get_me()).username
+        markup = Markup([[Btn("🎬 Tomosha qilish", url=f"https://t.me/{username}?start={movie.code}")]])
+        if movie.poster_file_id:
+            await tg.send_photo(chat_id=bot.movie_channel_id, photo=movie.poster_file_id,
+                                caption=caption_of(movie), parse_mode="HTML", reply_markup=markup)
+        else:
+            await tg.send_message(chat_id=bot.movie_channel_id, text=caption_of(movie),
+                                  parse_mode="HTML", reply_markup=markup)
+    except TelegramError as exc:
+        logger.warning("bot_id=%s: cannot post to channel (%s)", bot.id, exc)
+        return "Kanalga yuborib bo‘lmadi. Bot kanalda administrator va xabar yuborish huquqiga ega ekanini tekshiring."
+    return None
 
 
 async def find_by_code(session, bot_id, code):
@@ -180,12 +203,15 @@ def _movie_card(movie) -> str:
     )
 
 
-def _movie_markup(movie) -> Markup:
+def _movie_markup(movie, has_channel=False) -> Markup:
     i = movie.id
+    channel = [[Btn("📢 Kanalga yuborish", callback_data=f"cm:post:{i}")]] if has_channel else []
     return Markup([
         [Btn("▶️ Ko‘rish", callback_data=f"mv:{i}")],
         [Btn("✏️ Nomi", callback_data=f"cm:edit:{i}:title"), Btn("🔑 Kodi", callback_data=f"cm:edit:{i}:code")],
         [Btn("📝 Tavsifi", callback_data=f"cm:edit:{i}:desc"), Btn("🎞 Faylni almashtirish", callback_data=f"cm:edit:{i}:file")],
+        [Btn("🖼 Poster", callback_data=f"cm:edit:{i}:poster")],
+        *channel,
         [Btn("🗑 O‘chirish", callback_data=f"cm:del:{i}")],
         [Btn("⬅️ Ro‘yxat", callback_data="cm:list:0")],
     ])
@@ -277,14 +303,17 @@ async def admin_callback(bot, callback, session, tg, us):
         await _list(tg, callback, chat_id, session, bot, int(parts[2]))
     elif action == "stats":
         await _stats(tg, callback, chat_id, session, bot)
-    elif action in ("open", "del", "delok", "edit"):
+    elif action in ("open", "del", "delok", "edit", "post"):
         movie = await session.get(Movie, int(parts[2]))
         if movie is None or movie.bot_id != bot.id:
             await _show(tg, callback, chat_id, "Kino topilmadi.", Markup([[Btn("⬅️ Ro‘yxat", callback_data="cm:list:0")]]))
             return
         if action == "open":
             await _set_state(session, us)
-            await _show(tg, callback, chat_id, _movie_card(movie), _movie_markup(movie))
+            await _show(tg, callback, chat_id, _movie_card(movie), _movie_markup(movie, bool(bot.movie_channel_id)))
+        elif action == "post":
+            problem = await post_to_channel(tg, bot, movie)
+            await tg.send_message(chat_id=chat_id, text="✅ Kanalga yuborildi." if not problem else f"❌ {problem}")
         elif action == "del":
             await _show(tg, callback, chat_id, f"🗑 <b>{esc(movie.title)}</b> o‘chirilsinmi?", Markup([[
                 Btn("✅ Ha", callback_data=f"cm:delok:{movie.id}"), Btn("❌ Yo‘q", callback_data=f"cm:open:{movie.id}")]]))
@@ -299,6 +328,7 @@ async def admin_callback(bot, callback, session, tg, us):
                 "code": "🔑 Yangi <b>kodni</b> yuboring.",
                 "desc": "📝 Yangi <b>tavsifni</b> yuboring (o‘chirish uchun /skip).",
                 "file": "🎞 Yangi <b>videoni</b> yuboring.",
+                "poster": "🖼 Yangi <b>poster rasmini</b> yuboring.",
             }
             if field not in prompts:
                 return
@@ -323,11 +353,10 @@ async def admin_message(bot, message, session, tg, us) -> bool:
         file_id, file_type = found
         if state == ADD_VIDEO:
             data.update(file_id=file_id, file_type=file_type)
-            await _set_state(session, us, ADD_CODE, data)
-            suggestion = await _next_code(session, bot.id)
+            await _set_state(session, us, ADD_POSTER, data)
             await tg.send_message(
                 chat_id=chat_id, parse_mode="HTML",
-                text=f"✅ Video qabul qilindi.\n\n🔑 Endi kino <b>kodini</b> yuboring.\nAvtomatik kod: /auto (<code>{suggestion}</code>)",
+                text="✅ Video qabul qilindi.\n\n🖼 Endi kanal e’loni uchun <b>poster rasmini</b> yuboring. O‘tkazib yuborish: /skip",
             )
         else:
             movie = await session.get(Movie, data["id"])
@@ -337,6 +366,28 @@ async def admin_message(bot, message, session, tg, us) -> bool:
             await _set_state(session, us)
             await tg.send_message(chat_id=chat_id, text="✅ Fayl almashtirildi.",
                                   reply_markup=Markup([[Btn("🎬 Kinoga qaytish", callback_data=f"cm:open:{data['id']}")]]))
+        return True
+
+    if state in (ADD_POSTER, EDIT_PREFIX + "poster"):
+        photo = message.get("photo")
+        if not photo and not (state == ADD_POSTER and text == "/skip"):
+            await tg.send_message(chat_id=chat_id, text="🖼 Rasm yuboring (siqilgan foto). Bekor qilish: /cancel")
+            return True
+        poster = photo[-1]["file_id"] if photo else None
+        if state == ADD_POSTER:
+            data["poster"] = poster
+            await _set_state(session, us, ADD_CODE, data)
+            suggestion = await _next_code(session, bot.id)
+            await tg.send_message(
+                chat_id=chat_id, parse_mode="HTML",
+                text=f"🔑 Endi kino <b>kodini</b> yuboring.\nAvtomatik kod: /auto (<code>{suggestion}</code>)",
+            )
+        else:
+            movie = await session.get(Movie, data["id"])
+            if movie and movie.bot_id == bot.id:
+                movie.poster_file_id = poster
+                await session.commit()
+            await _finish_edit(tg, session, us, chat_id, data["id"], "Poster yangilandi.")
         return True
 
     if not text:
@@ -380,13 +431,18 @@ async def admin_message(bot, message, session, tg, us) -> bool:
             movie = Movie(
                 bot_id=bot.id, code=data["code"], title=data["title"], description=desc,
                 file_id=data["file_id"], file_type=data.get("file_type", "video"), added_by=chat_id,
+                poster_file_id=data.get("poster"),
             )
             session.add(movie)
             await _set_state(session, us)
             await session.refresh(movie)
+            note = ""
+            if bot.movie_channel_id:
+                problem = await post_to_channel(tg, bot, movie)
+                note = "\n\n📢 Kanalga yuborildi." if not problem else f"\n\n⚠️ {problem}"
             await tg.send_message(
                 chat_id=chat_id, parse_mode="HTML",
-                text=f"✅ Saqlandi!\n\n{_movie_card(movie)}",
+                text=f"✅ Saqlandi!\n\n{_movie_card(movie)}{note}",
                 reply_markup=Markup([[Btn("➕ Yana qo‘shish", callback_data="cm:add")],
                                      [Btn("🛠 Admin panel", callback_data="cm:home")]]),
             )
@@ -421,6 +477,7 @@ async def _on_callback(bot, callback, session, tg):
     user = callback["from"]
     user_id = user["id"]
     data = callback.get("data") or ""
+    await touch_user(session, bot.id, user)
     admin = await is_admin(session, bot, user_id)
 
     if data.startswith("cm:"):
@@ -446,6 +503,8 @@ async def _on_message(bot, message, session, tg):
     user_id = sender["id"]
     text = (message.get("text") or "").strip()
     cmd = text.split()[0].split("@")[0] if text else ""
+    payload = text.split(maxsplit=1)[1].strip() if cmd == "/start" and len(text.split()) > 1 else None
+    await touch_user(session, bot.id, sender, source=payload)
     admin = await is_admin(session, bot, user_id)
 
     if not admin and not await subscription.gate(tg, bot, user_id, session):
@@ -467,6 +526,12 @@ async def _on_message(bot, message, session, tg):
         if us.state and cmd == "/start":
             await _set_state(session, us)
 
+    if cmd == "/start" and payload:  # t.me/bot?start=<movie code>
+        movie = await find_by_code(session, bot.id, payload)
+        if movie:
+            await send_movie(tg, session, movie, user_id)
+            return
+        await tg.send_message(chat_id=user_id, text="😕 Bu kodli kino topilmadi.")
     if cmd == "/start":
         menu = await ensure_start_menu(session, bot)
         hint = "\n\n🛠 Admin panel: /admin" if admin else ""

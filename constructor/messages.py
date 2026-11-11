@@ -29,6 +29,8 @@ async def messages(update, context):
         await handle_action_link(update, context)
     elif state == states.WAITING_FOR_ADMIN_ID:
         await handle_admin_id(update, context)
+    elif state == states.WAITING_FOR_MOVIE_CHANNEL:
+        await cinema_flows.handle_channel_text(update, context)
     elif state == states.WAITING_FOR_BOT_ADMIN:
         await cinema_flows.handle_admin_text(update, context)
     elif state in states.AUDIENCE_STATES:

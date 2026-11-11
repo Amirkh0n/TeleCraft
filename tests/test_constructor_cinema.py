@@ -88,3 +88,22 @@ def test_cinema_callbacks_are_anchored_and_registered_before_legacy_ones():
 
     for data in ("cin:home", "cin:on", "cin:off", "adm:home", "adm:add", "adm:del:123456"):
         assert first_match(data).startswith("^")
+
+
+async def test_channel_crud_helpers(env):
+    from constructor.flows.cinema import clear_channel, save_channel
+    await save_channel(env.session, env.bot, -1001234, "Kino <kanal>")
+    assert (env.bot.movie_channel_id, env.bot.movie_channel_title) == (-1001234, "Kino <kanal>")
+    await save_channel(env.session, env.bot, -1005678, "Yangi")
+    assert env.bot.movie_channel_id == -1005678
+    await clear_channel(env.session, env.bot)
+    assert env.bot.movie_channel_id is None and env.bot.movie_channel_title is None
+
+
+def test_channel_callbacks_registered_and_anchored():
+    app = build_constructor_application("123:ABC")
+    patterns = [h.pattern.pattern for h in app.handlers[0] if isinstance(h, CallbackQueryHandler) and h.pattern]
+    for data in ("cin:ch", "cin:chdel"):
+        first = next(p for h, p in zip([h for h in app.handlers[0] if isinstance(h, CallbackQueryHandler) and h.pattern], patterns)
+                     if h.pattern.search(data))
+        assert first.startswith("^")

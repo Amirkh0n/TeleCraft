@@ -3,6 +3,7 @@
 Movies are managed inside the child bot (``/admin``); here the owner only switches the mode on
 and decides who the admins are.
 """
+import html
 import re
 
 from sqlalchemy import func, select
@@ -13,7 +14,10 @@ from constructor import states
 from constructor.session import ensure_constructor_user, save_builder_session
 from constructor.ui import show_screen
 from core.database import AsyncSessionLocal
+from constructor.flows.audience import normalize_channel_ref
 from engine import cinema as cinema_engine
+from engine import subscription
+from engine.telegram_client import get_client
 from models.admin_links import AdminLink
 from models.bots import Bot
 from models.movies import KIND_CINEMA, KIND_STANDARD, Movie
@@ -36,6 +40,16 @@ async def set_kind(session, bot, kind: str) -> None:
     bot.kind = kind
     if kind == KIND_CINEMA:
         await cinema_engine.ensure_start_menu(session, bot)
+    await session.commit()
+
+
+async def save_channel(session, bot, chat_id: int, title: str) -> None:
+    bot.movie_channel_id, bot.movie_channel_title = chat_id, title[:255]
+    await session.commit()
+
+
+async def clear_channel(session, bot) -> None:
+    bot.movie_channel_id = bot.movie_channel_title = None
     await session.commit()
 
 
@@ -98,13 +112,17 @@ async def cinema_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username = f"@{bot.username}" if bot.username else "child bot"
         text = (
             "🎬 <b>Kino bot rejimi: yoqilgan</b>\n\n"
-            f"Kinolar: <b>{count}</b>\n\n"
+            f"Kinolar: <b>{count}</b>\n"
+            f"Kino kanal: <b>{html.escape(bot.movie_channel_title) if bot.movie_channel_id else 'ulanmagan'}</b>\n\n"
             "Kino qo‘shish, tahrirlash va o‘chirish <b>child botning o‘zida</b> bajariladi:\n"
             f"1. {username} ga kiring\n2. <code>/admin</code> yuboring\n3. «➕ Kino qo‘shish» → video yuboring → kod va nom kiriting.\n\n"
             "Kino videosi Telegram <code>file_id</code> sifatida saqlanadi va shu orqali yuboriladi. "
             "Admin qo‘shish uchun «👮 Adminlar» bo‘limidan foydalaning."
         )
         keyboard = [
+            [InlineKeyboardButton("📢 Kino kanalni almashtirish" if bot.movie_channel_id else "📢 Kino kanal ulash",
+                                  callback_data="cin:ch")],
+            *([[InlineKeyboardButton("🗑 Kanalni uzish", callback_data="cin:chdel")]] if bot.movie_channel_id else []),
             [InlineKeyboardButton("👮 Adminlar", callback_data="adm:home")],
             [InlineKeyboardButton("🔙 Oddiy rejimga qaytish", callback_data="cin:off")],
         ]
@@ -129,6 +147,59 @@ async def cinema_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return await _no_bot(update)
         await set_kind(session, bot, kind)
     await cinema_home(update, context)
+    if kind == KIND_CINEMA and not bot.movie_channel_id:
+        await _ask_channel(update, context, via_message=True)  # offered right away when the mode is enabled
+
+
+async def _ask_channel(update: Update, context: ContextTypes.DEFAULT_TYPE, *, via_message: bool = False):
+    user = await ensure_constructor_user(update.effective_user.id, update.effective_user.full_name)
+    await save_builder_session(user.id, context, pending_state=states.WAITING_FOR_MOVIE_CHANNEL, draft={"flow": "movie_channel"})
+    target = update.callback_query.message
+    await target.reply_text(
+        "📢 Yangi kinolar e’lon qilinadigan <b>kanalni</b> yuboring: <code>@kanal_nomi</code> yoki <code>t.me/kanal_nomi</code>.\n"
+        "Avval child botni shu kanalga <b>administrator</b> qiling (xabar yuborish huquqi bilan). "
+        "Yopiq kanal bo‘lsa, raqamli ID (<code>-100...</code>) yuboring.\n"
+        "Hozircha kerak bo‘lmasa: /cancel",
+        parse_mode="HTML",
+    )
+
+
+async def channel_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async with AsyncSessionLocal() as session:
+        if await _current_bot(session, update, context) is None:
+            return await _no_bot(update)
+    await update.callback_query.answer()
+    await _ask_channel(update, context)
+
+
+async def channel_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async with AsyncSessionLocal() as session:
+        bot = await _current_bot(session, update, context)
+        if bot is None:
+            return await _no_bot(update)
+        await clear_channel(session, bot)
+    await cinema_home(update, context)
+
+
+async def handle_channel_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ref = normalize_channel_ref(update.message.text)
+    if ref is None:
+        await update.message.reply_text("❌ Manzil noto‘g‘ri. Masalan: @kanal_nomi")
+        return
+    async with AsyncSessionLocal() as session:
+        bot = await _current_bot(session, update, context)
+        if bot is None:
+            await update.message.reply_text("❌ Avval botni tanlang.")
+            return
+        token = bot.plain_token
+        chat_id, title, _username, problem = await subscription.describe_channel(await get_client(token), ref)
+        if problem:
+            await update.message.reply_text(f"❌ {problem}")
+            return
+        await save_channel(session, bot, chat_id, title)
+    user = await ensure_constructor_user(update.effective_user.id, update.effective_user.full_name)
+    await save_builder_session(user.id, context, pending_state="", draft={})
+    await update.message.reply_text(f"✅ Kino kanal ulandi: {html.escape(title)}. Endi yangi kinolar shu yerga e’lon qilinadi.", parse_mode="HTML")
 
 
 # ---------------------------------------------------------------- admins
