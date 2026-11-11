@@ -374,4 +374,5 @@ formalar va auditoriya statistikasi shu yerda.
 - Kirish Telegram imzosi bilan (`initData`, konstruktor bot tokeni orqali tekshiriladi): parol yoki sessiya yo‘q,
   har bir so‘rov faqat foydalanuvchining o‘z botlari bilan ishlaydi.
 - Manzil: `/app/`, API: `/api/v1/…`. Qurish bosqichi yo‘q: `webapp/static/` dagi oddiy HTML/CSS/JS.
-- Broadcast va majburiy obuna hozircha konstruktor bot ichida; muharrirga keyingi bosqichda ko‘chiriladi.
+- Muharrirda to‘rt bo‘lim: Ekranlar, Formalar, Tarqatish (broadcast: ko‘rinishini ko‘rish, o‘zingizga sinov yuborish, jarayonni kuzatish) va Auditoriya (statistika + majburiy obuna kanallari).
+- Tugmalarni bosib turib sudrab tartiblash mumkin; saqlanmagan o‘zgarishlar yopishdan oldin ogohlantiriladi.
