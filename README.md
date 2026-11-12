@@ -397,3 +397,15 @@ Texnik: migratsiya `0004_cinema` (faqat qo‘shimcha: `movies`, `bots.kind`, `us
 - **Himoya**: video `protect_content=True` bilan yuboriladi (forward va saqlash cheklanadi).
 - **Majburiy obuna va broadcast** kino botda ham ishlaydi: foydalanuvchilar auditoriyaga yoziladi, adminlar obunadan ozod.
 - Migratsiya: `0005_cinema_channel` (faqat qo‘shimcha).
+
+## Bron bot rejimi
+
+Bot panelidagi **📅 Bron bot** tugmasi botni onlayn bron (navbat) tizimiga aylantiradi: sartaroshxona, klinika, o‘quv markaz, avto servis va h.k.
+
+- **Mijoz**: xizmat → mutaxassis (yoki «farqi yo‘q») → kun → vaqt → telefon → tasdiq. Band vaqtlar ko‘rinmaydi, ikki kishi bir vaqtni ola olmaydi. «📋 Mening bronlarim»da ko‘rish va bekor qilish (muddati admin belgilaydi). Telefon raqami keyingi bronlarda eslab qolinadi.
+- **Admin (child botning o‘zida, `/admin`)**: bugungi/kelgusi/tasdiq kutayotgan bronlar (tasdiqlash, rad etish, bekor qilish, «bajarildi», «kelmadi»), 🧾 xizmatlar (nom, davomiylik, narx, tavsif), 👤 mutaxassislar (qaysi xizmatlarni bajarishi, shaxsiy jadval), 🕒 ish vaqti (tanaffus bilan: `09:00-13:00, 14:00-18:00`), 🏖 dam kunlari (oraliq bilan), ⚙️ sozlamalar, 📊 statistika.
+- **Sozlamalar**: tasdiqlash (avtomatik yoki admin qo‘lda), vaqt qadami, eng kam oldindan band qilish, necha kun oldin, bekor qilish muddati, vaqt mintaqasi (standart Asia/Tashkent), aloqa ma’lumoti.
+- **Eslatmalar**: admin vaqtni o‘zi yozadi (`1 kun, 2 soat`). Har bir eslatma bir marta yuboriladi; server to‘xtab qolgan bo‘lsa, eski eslatmalar ketma-ket yog‘ilmaydi, faqat eng yaqini yuboriladi. Fon sikli ilova bilan birga ishlaydi (ilovaning **bitta nusxasi** kerak).
+- **Adminlar** asosiy bot → 👮 Adminlar orqali qo‘shiladi; yangi bron, bekor qilish haqida shu adminlarga xabar boradi.
+- Majburiy obuna va broadcast bron botda ham ishlaydi.
+- Migratsiya `0006_booking` (faqat yangi jadvallar). Vaqtlar UTC da saqlanadi, ko‘rsatishda bot mintaqasi ishlatiladi.
