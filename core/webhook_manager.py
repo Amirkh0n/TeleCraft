@@ -16,6 +16,10 @@ def build_webhook_url(token: str) -> str:
     return f"{settings.PUBLIC_BASE_URL.rstrip('/')}/h/{token_hash(token)}"
 
 
+# poll_answer is needed by quiz bots (non-anonymous polls report who voted for what)
+ALLOWED_UPDATES = ('message', 'callback_query', 'my_chat_member', 'poll_answer')
+
+
 async def set_webhook(token: str, webhook_url: str) -> bool:
     """Set webhook for a bot"""
     try:
@@ -23,7 +27,7 @@ async def set_webhook(token: str, webhook_url: str) -> bool:
             result = await tg_bot.set_webhook(
                 url=webhook_url,
                 max_connections=100,
-                allowed_updates=['message', 'callback_query', 'my_chat_member'],
+                allowed_updates=list(ALLOWED_UPDATES),
                 secret_token=webhook_secret(token),
             )
 

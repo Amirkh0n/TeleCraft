@@ -139,3 +139,25 @@ def test_booking_callbacks_are_anchored():
     hs = [h for h in app.handlers[0] if isinstance(h, CallbackQueryHandler) and h.pattern]
     for data in ("bkc:home", "bkc:on", "bkc:off"):
         assert next(h for h in hs if h.pattern.search(data)).pattern.pattern.startswith("^")
+
+
+async def test_quiz_mode_switch_creates_settings_and_welcome(env):
+    from models.quiz import QuizSettings
+    await set_kind(env.session, env.bot, "quiz")
+    assert env.bot.kind == "quiz"
+    st = (await env.session.execute(select(QuizSettings))).scalar_one()
+    assert st.who_can_create == "everyone" and st.max_tests_per_user == 30
+    menu = (await env.session.execute(select(Menu))).scalar_one()
+    assert "Test botiga" in menu.message_text
+    await set_kind(env.session, env.bot, "booking")  # default welcome of the previous mode is replaced
+    await env.session.refresh(menu)
+    assert "Test botiga" not in menu.message_text
+
+
+def test_quiz_callbacks_anchored_and_webhook_allows_poll_answers():
+    from core.webhook_manager import ALLOWED_UPDATES
+    assert "poll_answer" in ALLOWED_UPDATES and "callback_query" in ALLOWED_UPDATES and "my_chat_member" in ALLOWED_UPDATES
+    app = build_constructor_application("123:ABC")
+    hs = [h for h in app.handlers[0] if isinstance(h, CallbackQueryHandler) and h.pattern]
+    for data in ("qzc:home", "qzc:on", "qzc:off"):
+        assert next(h for h in hs if h.pattern.search(data)).pattern.pattern.startswith("^")
