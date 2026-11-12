@@ -37,9 +37,16 @@ def parse_tg_id(text: str) -> int:
 
 
 async def set_kind(session, bot, kind: str) -> None:
+    from engine import booking as booking_engine
+    from models.booking import KIND_BOOKING
     bot.kind = kind
-    if kind == KIND_CINEMA:
-        await cinema_engine.ensure_start_menu(session, bot)
+    welcomes = {KIND_CINEMA: cinema_engine.WELCOME, KIND_BOOKING: booking_engine.WELCOME}
+    if kind in welcomes:
+        if kind == KIND_BOOKING:
+            await booking_engine.ensure_setup(session, bot)
+        menu = await cinema_engine.ensure_start_menu(session, bot, welcomes[kind])
+        if menu.message_text in welcomes.values():  # still a default text of another mode: swap it
+            menu.message_text = welcomes[kind]
     await session.commit()
 
 
@@ -133,6 +140,7 @@ async def cinema_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎬 <b>Kino bot</b>\n\nBot kino katalogiga aylanadi: foydalanuvchi kino <b>kodini</b> yoki "
             "<b>nomini</b> yozadi va videoni oladi. Kinolarni adminlar botning o‘zida boshqaradi.\n\n"
             "⚠️ Rejim yoqilganda menyu/tugmalar o‘rniga kino qidiruvi ishlaydi (menyularingiz o‘chmaydi)."
+            + ("\n\n⚠️ Hozir <b>bron bot</b> rejimi yoqilgan; kino botga o‘tsangiz, u o‘chadi (bronlar saqlanadi)." if bot.kind == "booking" else "")
         )
         keyboard = [[InlineKeyboardButton("✅ Kino botga aylantirish", callback_data="cin:on")]]
     keyboard.append(_back(bot.id))

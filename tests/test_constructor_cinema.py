@@ -107,3 +107,35 @@ def test_channel_callbacks_registered_and_anchored():
         first = next(p for h, p in zip([h for h in app.handlers[0] if isinstance(h, CallbackQueryHandler) and h.pattern], patterns)
                      if h.pattern.search(data))
         assert first.startswith("^")
+
+
+async def test_booking_mode_switch_prepares_hours_menu_and_settings(env):
+    from models.booking import BookingHours, BookingSettings
+    await set_kind(env.session, env.bot, "booking")
+    assert env.bot.kind == "booking"
+    hours = (await env.session.execute(select(BookingHours))).scalars().all()
+    assert {h.weekday for h in hours} == {0, 1, 2, 3, 4, 5}
+    st = (await env.session.execute(select(BookingSettings))).scalar_one()
+    assert st.auto_confirm is True and st.reminders == [1440, 60]
+    menu = (await env.session.execute(select(Menu))).scalar_one()
+    assert "Bron" in menu.message_text or "bron" in menu.message_text
+    await set_kind(env.session, env.bot, "standard")  # switching back keeps the data
+    assert (await env.session.execute(select(BookingHours))).first() is not None
+
+
+async def test_switching_between_modes_swaps_default_welcome_text(env):
+    await set_kind(env.session, env.bot, "cinema")
+    await set_kind(env.session, env.bot, "booking")
+    menu = (await env.session.execute(select(Menu))).scalar_one()
+    assert "Kino" not in menu.message_text and "bron" in menu.message_text.lower()
+    menu.message_text = "Mening matnim"  # a custom text is never overwritten
+    await env.session.commit()
+    await set_kind(env.session, env.bot, "cinema")
+    assert menu.message_text == "Mening matnim"
+
+
+def test_booking_callbacks_are_anchored():
+    app = build_constructor_application("123:ABC")
+    hs = [h for h in app.handlers[0] if isinstance(h, CallbackQueryHandler) and h.pattern]
+    for data in ("bkc:home", "bkc:on", "bkc:off"):
+        assert next(h for h in hs if h.pattern.search(data)).pattern.pattern.startswith("^")

@@ -59,13 +59,13 @@ async def is_admin(session, bot, user_id: int) -> bool:
     return user_id in await admin_ids(session, bot)
 
 
-async def ensure_start_menu(session, bot) -> Menu:
+async def ensure_start_menu(session, bot, text: str | None = None) -> Menu:
     """Sessions need a menu (NOT NULL FK), so a cinema bot always owns a start menu."""
     menu = (await session.execute(
         select(Menu).where(Menu.bot_id == bot.id).order_by(Menu.is_start.desc(), Menu.id)
     )).scalars().first()
     if menu is None:
-        menu = Menu(bot_id=bot.id, title="Bosh menyu", message_text=WELCOME, is_start=True)
+        menu = Menu(bot_id=bot.id, title="Bosh menyu", message_text=text or WELCOME, is_start=True)
         session.add(menu)
         await session.commit()
     return menu

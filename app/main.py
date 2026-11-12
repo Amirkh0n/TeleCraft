@@ -15,6 +15,7 @@ from core.logger import logger
 from core.rate_limit import rate_limit_middleware
 from core.config import settings
 from core.webhook_manager import refresh_webhooks
+from engine.booking_reminders import loop as reminders_loop
 from engine.broadcast import resume_pending
 from engine.telegram_client import close_all_clients
 from models.bots import Bot
@@ -56,6 +57,7 @@ request_duration = Histogram(
 # Register rate limiting middleware
 app.middleware("http")(rate_limit_middleware)
 constructor_application = None
+reminder_task = None
 
 
 async def _resume_broadcasts():
@@ -91,11 +93,15 @@ async def on_startup():
         # Background task: must not delay startup or crash it if Telegram is slow.
         asyncio.create_task(refresh_webhooks())
     asyncio.create_task(_resume_broadcasts())
+    global reminder_task
+    reminder_task = asyncio.create_task(reminders_loop())
     logger.info("TeleCraft Constructor API started")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    if reminder_task:
+        reminder_task.cancel()
     if constructor_application:
         await constructor_application.stop()
         await constructor_application.shutdown()

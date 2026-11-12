@@ -89,7 +89,7 @@ async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id: i
     )
 
     start_state = "✅ Sozlangan" if start_menu and start_menu.message_text else "⚠️ Matn kutilmoqda"
-    mode = "🎬 Kino bot" if bot.kind == "cinema" else "🧩 Oddiy bot"
+    mode = {"cinema": "🎬 Kino bot", "booking": "📅 Bron bot"}.get(bot.kind, "🧩 Oddiy bot")
     text = (
         f"🤖 {bot.name}\n"
         f"{bot_status(bot)} · {mode}\n\n"
@@ -106,7 +106,8 @@ async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id: i
          InlineKeyboardButton("📣 Broadcast", callback_data="bc:home")],
         [InlineKeyboardButton("🔒 Majburiy obuna", callback_data="sub:home")],
         [InlineKeyboardButton("🎬 Kino bot", callback_data="cin:home"),
-         InlineKeyboardButton("👮 Adminlar", callback_data="adm:home")],
+         InlineKeyboardButton("📅 Bron bot", callback_data="bkc:home")],
+        [InlineKeyboardButton("👮 Adminlar", callback_data="adm:home")],
         [InlineKeyboardButton("🧪 Sinab ko‘rish", callback_data="test_bot")],
         [InlineKeyboardButton("📊 Holat", callback_data="bot_status")],
         [InlineKeyboardButton("⬅️ Botlarim", callback_data="back_to_bots")],
