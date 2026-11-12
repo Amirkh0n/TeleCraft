@@ -409,3 +409,20 @@ Bot panelidagi **📅 Bron bot** tugmasi botni onlayn bron (navbat) tizimiga ayl
 - **Adminlar** asosiy bot → 👮 Adminlar orqali qo‘shiladi; yangi bron, bekor qilish haqida shu adminlarga xabar boradi.
 - Majburiy obuna va broadcast bron botda ham ishlaydi.
 - Migratsiya `0006_booking` (faqat yangi jadvallar). Vaqtlar UTC da saqlanadi, ko‘rsatishda bot mintaqasi ishlatiladi.
+
+## Test bot rejimi
+
+Bot panelidagi **🧠 Test bot** tugmasi botni test platformasiga aylantiradi (o‘quv markaz, maktab, bilim bellashuvi).
+
+- **Test yaratish — hamma foydalanuvchi** (adminlar «faqat adminlar» qilib cheklashi va har bir foydalanuvchi limitini qo‘yishi mumkin): nom → tavsif → **har bir savol uchun vaqt** (5–600 s) → savollar.
+- **Savollarni yuborish usullari**: (1) **.txt fayl**, (2) matn sifatida yozish/joylash, (3) Telegram **Quiz so‘rovi** (📎 → So‘rov → Quiz) — bir necha marta yuborib qo‘shib borish mumkin. Bot «📄 Namuna fayl» va «🤖 AI uchun so‘rov» (ChatGPT/Claude orqali savol tuzish) ni ham beradi.
+- **TXT format**: `#Savol`, `+to‘g‘ri`, `-noto‘g‘ri`, `!izoh`. Bir nechta `+` — ko‘p javobli savol. BOM, CRLF, cp1251, qatorga sig‘magan matn, bo‘sh qatorsiz yozuv qabul qilinadi; xatolar qator raqami bilan ko‘rsatiladi, to‘g‘ri savollar baribir qo‘shiladi. 300 belgidan uzun savol / 100 belgidan uzun variant avtomatik xabar + A, B, C harflariga o‘tkaziladi.
+- **Ishlash**: savollar vaqt cheklangan so‘rovnoma (`open_period`) bo‘lib keladi, ishtirokchilar anonim emas. Savollar va variantlar aralashtiriladi (test sozlamasi), «har urinishda N ta tasodifiy savol» ham bor. Vaqt tugasa savol o‘tkaziladi; ketma-ket 2 ta o‘tkazib yuborilsa test to‘xtaydi va «▶️ Davom ettirish» tugmasi chiqadi. `/stop` — to‘xtatish.
+- **Natija**: to‘g‘ri/xato/o‘tkazib yuborilgan, vaqt, reytingdagi o‘rin, «🔍 Xatolarni ko‘rish» (to‘g‘ri javoblar va izohlar bilan), qayta ishlash, do‘stlarga ulashish. Har test uchun reyting (eng yaxshi urinish: avval ball, keyin tezlik).
+- **Katalog va qidiruv**: ommabop/yangi testlar; nom yozsangiz qidiradi; havola `t.me/bot?start=t<id>`; test «faqat havola orqali» bo‘lishi ham mumkin.
+- **Muallif**: nom/tavsif/vaqt, aralashtirish, ommaviylik, savol qo‘shish/o‘chirish, **TXT yuklab olish**, statistika va reytingni ko‘rish.
+- **Admin paneli (`/admin`)**: barcha testlarni ko‘rish/yashirish, yaratish siyosati, limit, statistika. Adminlar har qanday testni boshqara oladi.
+- Poll holati bazada saqlanadi: server qayta ishga tushsa ham javoblar to‘g‘ri hisoblanadi va taymerlar qayta yoqiladi. Rejim yoqilganda webhook `poll_answer` yangilanishlariga ruxsat bilan qayta ro‘yxatdan o‘tkaziladi.
+- Migratsiya `0007_quiz` (faqat yangi jadvallar).
+
+Shuningdek: barcha bot turlarida tugma bosilganda Telegram’ga javob qaytariladi (tugmadagi aylanuvchi indikator qolib ketmaydi).

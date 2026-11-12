@@ -17,6 +17,7 @@ from core.config import settings
 from core.webhook_manager import refresh_webhooks
 from engine.booking_reminders import loop as reminders_loop
 from engine.broadcast import resume_pending
+from engine.quiz import resume_pending as resume_quizzes
 from engine.telegram_client import close_all_clients
 from models.bots import Bot
 from models.users import User
@@ -69,6 +70,15 @@ async def _resume_broadcasts():
         logger.exception("Could not resume broadcasts")
 
 
+async def _resume_quiz_timers():
+    try:
+        count = await resume_quizzes()
+        if count:
+            logger.info("Re-armed %s quiz question timer(s)", count)
+    except Exception:
+        logger.exception("Could not resume quiz timers")
+
+
 @app.on_event("startup")
 async def on_startup():
     if db_config.is_sqlite and os.environ.get("RENDER"):
@@ -93,6 +103,7 @@ async def on_startup():
         # Background task: must not delay startup or crash it if Telegram is slow.
         asyncio.create_task(refresh_webhooks())
     asyncio.create_task(_resume_broadcasts())
+    asyncio.create_task(_resume_quiz_timers())
     global reminder_task
     reminder_task = asyncio.create_task(reminders_loop())
     logger.info("TeleCraft Constructor API started")

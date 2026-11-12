@@ -38,12 +38,16 @@ def parse_tg_id(text: str) -> int:
 
 async def set_kind(session, bot, kind: str) -> None:
     from engine import booking as booking_engine
+    from engine import quiz as quiz_engine
     from models.booking import KIND_BOOKING
+    from models.quiz import KIND_QUIZ
     bot.kind = kind
-    welcomes = {KIND_CINEMA: cinema_engine.WELCOME, KIND_BOOKING: booking_engine.WELCOME}
+    welcomes = {KIND_CINEMA: cinema_engine.WELCOME, KIND_BOOKING: booking_engine.WELCOME, KIND_QUIZ: quiz_engine.WELCOME}
     if kind in welcomes:
         if kind == KIND_BOOKING:
             await booking_engine.ensure_setup(session, bot)
+        elif kind == KIND_QUIZ:
+            await quiz_engine.ensure_setup(session, bot)
         menu = await cinema_engine.ensure_start_menu(session, bot, welcomes[kind])
         if menu.message_text in welcomes.values():  # still a default text of another mode: swap it
             menu.message_text = welcomes[kind]

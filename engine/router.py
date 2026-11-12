@@ -7,7 +7,7 @@ from collections import OrderedDict
 from telegram.error import Forbidden
 
 from core.logger import get_logger
-from engine import booking, cinema, forms
+from engine import booking, cinema, forms, quiz
 from engine.audience import set_blocked, touch_user
 from engine.actions import execute_action, get_user_session
 from engine.resolver import (
@@ -56,8 +56,9 @@ def _user_lock(bot_id: int, user_id) -> asyncio.Lock:
 
 
 def _sender_id(update: dict):
-    source = update.get("callback_query") or update.get("message") or update.get("my_chat_member") or {}
-    return (source.get("from") or {}).get("id")
+    source = (update.get("callback_query") or update.get("message") or update.get("my_chat_member")
+              or update.get("poll_answer") or {})
+    return (source.get("from") or source.get("user") or {}).get("id")
 
 
 def _command(text: str) -> str:
@@ -73,6 +74,8 @@ async def route_update(bot, update, session, *, client=None):
 
     try:
         tg = client or await get_client(bot.plain_token)
+        if update.get("callback_query"):
+            await _ack(tg, update["callback_query"])
         async with _user_lock(bot.id, _sender_id(update)):
             if update.get("my_chat_member"):
                 await _on_membership(bot, update["my_chat_member"], session)
@@ -80,6 +83,8 @@ async def route_update(bot, update, session, *, client=None):
                 await cinema.handle(bot, update, session, tg)
             elif getattr(bot, "kind", "standard") == "booking":
                 await booking.handle(bot, update, session, tg)
+            elif getattr(bot, "kind", "standard") == "quiz":
+                await quiz.handle(bot, update, session, tg)
             elif update.get("callback_query"):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):
@@ -99,12 +104,15 @@ async def route_update(bot, update, session, *, client=None):
         await session.rollback()
 
 
-async def _on_callback(bot, callback, session, tg):
+async def _ack(tg, callback):
+    """Stops the loading spinner on the tapped button (for every bot kind)."""
     try:
-        await tg.answer_callback_query(callback["id"])  # stops the loading spinner on the button
+        await tg.answer_callback_query(callback["id"])
     except Exception as exc:  # e.g. the query is too old: the action can still run
         logger.info("answer_callback_query failed: %s", exc)
 
+
+async def _on_callback(bot, callback, session, tg):
     user_id = callback["from"]["id"]
     await touch_user(session, bot.id, callback["from"])
     if callback.get("data") == subscription.CHECK_CALLBACK:

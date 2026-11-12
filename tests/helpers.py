@@ -42,6 +42,25 @@ class FakeTG:
     async def edit_message_text(self, **kw):
         return self._record("edit_message_text", **kw)
 
+    async def send_poll(self, **kw):
+        msg = self._record("send_poll", **kw)
+        self._polls = getattr(self, "_polls", 0) + 1
+        msg.poll = SimpleNamespace(id=f"poll{self._polls}")
+        return msg
+
+    async def stop_poll(self, **kw):
+        return self._record("stop_poll", **kw)
+
+    async def get_file(self, file_id):
+        data = getattr(self, "files", {}).get(file_id, b"")
+        return SimpleNamespace(file_id=file_id, download_as_bytearray=self._download(data))
+
+    @staticmethod
+    def _download(data):
+        async def download_as_bytearray(*a, **kw):
+            return bytearray(data)
+        return download_as_bytearray
+
     async def delete_message(self, **kw):
         return self._record("delete_message", **kw)
 
