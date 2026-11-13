@@ -425,4 +425,16 @@ Bot panelidagi **🧠 Test bot** tugmasi botni test platformasiga aylantiradi (o
 - Poll holati bazada saqlanadi: server qayta ishga tushsa ham javoblar to‘g‘ri hisoblanadi va taymerlar qayta yoqiladi. Rejim yoqilganda webhook `poll_answer` yangilanishlariga ruxsat bilan qayta ro‘yxatdan o‘tkaziladi.
 - Migratsiya `0007_quiz` (faqat yangi jadvallar).
 
+## Kurs bot rejimi
+
+Bot panelidagi **🎓 Kurs bot** tugmasi botni onlayn kurs platformasiga aylantiradi (o‘quv markaz, ustoz, bloger).
+
+- **Tuzilma**: kurs → modul → dars. Dars = matn + istalgancha fayl (video, audio, PDF/hujjat, rasm). Fayllar `file_id` bilan saqlanadi, shuning uchun adminlar ularni **child botning o‘ziga** yuklaydi (`/admin` → kurs → modul → dars → «📎 Fayl qo‘shish», bir nechta faylni ketma-ket yuborib `/done`). O‘quvchilarga hammasi `protect_content` bilan (nusxalash/uzatish cheklangan) yuboriladi; adminning «👁 Ko‘rish» tugmasi himoyasiz.
+- **Kirish turi** (har kurs uchun alohida): 🆓 bepul · 🔑 kirish kodi (5 ta urinish, bosh sahifadagi «Kod kiritish» ham ishlaydi) · 💰 pullik: o‘quvchi kartaga o‘tkazib, **chek rasmini** yuboradi → adminlarga rasm va «✅ Tasdiqlash / ❌ Rad etish» tugmalari boradi (rad etishda sabab yoziladi) → tasdiqlansa kurs ochiladi. Bir vaqtda bitta kutilayotgan chek; takroriy bosish xavfsiz. Karta, egasi va izoh — ⚙️ Sozlamalar. (Click/Payme keyingi bosqichda.)
+- **Darslar ochilishi** (har kurs uchun): 🔓 hammasi ochiq · ➡️ ketma-ket (avvalgisini «✅ Tugatdim» qilsa keyingisi ochiladi) · 📅 jadval bo‘yicha (har N kunda bitta, ochilish soati va vaqt mintaqasi sozlanadi). Jadvalli kursda dars ochilganda o‘quvchiga avtomatik **eslatma** keladi (fon sikli; uzoq uzilishdan keyin faqat eng yangi dars haqida bitta xabar).
+- **O‘quvchi**: katalog, kurs sahifasi (muqova, tavsif, dastur), «🎓 Mening kurslarim», «▶️ Davom etish», progress chizig‘i, **tanishuv darslari** (kursga yozilmasdan ko‘rish mumkin), dars bo‘yicha «❓ Savol», tugatganda 🎓 **sertifikat**. Kurs havolasi: `t.me/bot?start=c<id>`.
+- **Admin paneli (`/admin`)**: kurs/modul/dars CRUD (tartibni ⬆️⬇️ bilan o‘zgartirish, o‘chirishda tasdiq), e’lon qilish/qoralama (pullik kursni karta va narxsiz e’lon qilib bo‘lmaydi), o‘quvchilar (qo‘lda qo‘shish/chiqarish, progress), to‘lovlar, javobsiz savollar, statistika (tushum, tugatganlar).
+- Boshqa botlar kabi majburiy obuna va broadcast ishlaydi.
+- Migratsiya `0008_course` (faqat yangi jadvallar). Fon sikli bitta nusxadagi ilova uchun mo‘ljallangan.
+
 Shuningdek: barcha bot turlarida tugma bosilganda Telegram’ga javob qaytariladi (tugmadagi aylanuvchi indikator qolib ketmaydi).
