@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from engine import course_notify as notify
 from engine.booking_time import utcnow
@@ -12,6 +12,11 @@ from models.menus import Menu
 from sqlalchemy import select
 
 
+START = datetime(2026, 11, 1, 3, 0, tzinfo=timezone.utc)  # 08:00 Tashkent; lessons open at 09:00 local
+DAY2 = datetime(2026, 11, 2, 5, 0, tzinfo=timezone.utc)
+DAY4 = datetime(2026, 11, 4, 5, 0, tzinfo=timezone.utc)
+
+
 async def no_sleep(_):
     return None
 
@@ -22,27 +27,27 @@ async def client(_bot, tg=None):
 
 async def test_new_drip_lesson_announced_once(cr):
     c, ls = await make_course(cr, n=3, unlock="drip", drip_days=1)
-    en = Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=utcnow() - timedelta(days=1, hours=2))
+    en = Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=START)
     cr.session.add(en)
     await cr.session.commit()
 
     async def cf(bot):
         return cr.tg
-    assert await notify.run_once(cr.session, client_for=cf, sleep=no_sleep) == 1
+    assert await notify.run_once(cr.session, now=DAY2, client_for=cf, sleep=no_sleep) == 1
     msg = cr.tg.of("send_message")[-1]
     assert msg["chat_id"] == USER and "Dars 2" in msg["text"]
     assert f"cr:l:{ls[1].id}" in datas(cr, msg)
-    assert await notify.run_once(cr.session, client_for=cf, sleep=no_sleep) == 0
+    assert await notify.run_once(cr.session, now=DAY2, client_for=cf, sleep=no_sleep) == 0
 
 
 async def test_downtime_sends_one_notice_for_latest(cr):
     c, ls = await make_course(cr, n=5, unlock="drip", drip_days=1)
-    cr.session.add(Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=utcnow() - timedelta(days=3, hours=1)))
+    cr.session.add(Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=START))
     await cr.session.commit()
 
     async def cf(bot):
         return cr.tg
-    assert await notify.run_once(cr.session, client_for=cf, sleep=no_sleep) == 1
+    assert await notify.run_once(cr.session, now=DAY4, client_for=cf, sleep=no_sleep) == 1
     assert "Dars 4" in cr.tg.of("send_message")[-1]["text"]
     assert (await row(cr, Enrollment))[0].notified_count == 4
 

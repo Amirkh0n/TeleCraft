@@ -149,6 +149,8 @@ async def test_sequential_unlock_and_completion_certificate(cr):
 
 async def test_drip_locked_then_open(cr):
     c, ls = await make_course(cr, n=3, unlock="drip", drip_days=1)
+    (await core.get_settings(cr.session, cr.bot.id)).drip_hour = 0  # independent of the time of day the test runs
+    await cr.session.commit()
     await press(cr, f"cr:join:{c.id}")
     await press(cr, f"cr:l:{ls[1].id}")
     assert "Ochilish vaqti" in screen(cr)["text"]
