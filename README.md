@@ -437,4 +437,15 @@ Bot panelidagi **🎓 Kurs bot** tugmasi botni onlayn kurs platformasiga aylanti
 - Boshqa botlar kabi majburiy obuna va broadcast ishlaydi.
 - Migratsiya `0008_course` (faqat yangi jadvallar). Fon sikli bitta nusxadagi ilova uchun mo‘ljallangan.
 
+## Do‘kon bot rejimi
+
+Bot panelidagi **🛒 Do‘kon bot** tugmasi botni onlayn do‘konga aylantiradi.
+
+- **Katalog**: bo‘lim → mahsulot. Mahsulotda bir nechta rasm (`file_id`, adminlar child botning o‘ziga yuklaydi), narx, **eski narx** (chegirma foizi ko‘rsatiladi), ombor soni (bo‘sh = cheksiz), **variantlar** (o‘lcham/rang: har birining o‘z narxi va qoldig‘i; `nom | narx | qoldiq` qatorlari bilan qo‘shiladi, bir xil nom yangilanadi). Yashirish/ko‘rsatish, tartiblash, qidiruv, mahsulot havolasi `t.me/bot?start=p<id>`.
+- **Savat**: ➕/➖/🗑, qoldiqqa moslash, sotuvdan olingan mahsulot avtomatik chiqariladi.
+- **Buyurtma**: telefon (kontakt tugmasi yoki yozib; oxirgi raqam taklif qilinadi) → 🚚 yetkazish (manzil yoki lokatsiya) yoki 🏪 olib ketish → 💵 naqd yoki 💳 karta (karta raqamiga o‘tkazib **chek rasmi** yuboriladi) → tasdiqlash. Yetkazish narxi, «X so‘mdan yuqori bepul» va minimal buyurtma sozlanadi; faqat bitta variant yoqilgan bo‘lsa, savol o‘tkazib yuboriladi.
+- **Ombor xavfsizligi**: qoldiq buyurtma paytida bitta `UPDATE … WHERE stock >= qty` bilan kamayadi (ikki mijoz oxirgi donani sotib ola olmaydi); biror mahsulot yetmasa butun buyurtma bekor bo‘ladi. Buyurtma bekor qilinsa (mijoz — faqat «yangi» holatda, yoki admin) qoldiq bir marta qaytariladi.
+- **Admin paneli (`/admin`)**: yangi buyurtmalar adminlarga xabar bo‘lib keladi; holatlar «✅ Tasdiqlash → 👨‍🍳 Tayyorlanmoqda → 🚚 Yo‘lda / 🏪 Tayyor → ✔️ Yakunlash» (har o‘zgarishda xaridorga xabar, orqaga qaytib bo‘lmaydi), cheklarni tasdiqlash/rad etish (sabab bilan), bekor qilish; bo‘lim/mahsulot/variant CRUD; sozlamalar (karta, yetkazish, aloqa, to‘lov usullarini yoqish/o‘chirish); statistika (holatlar, tushum, ko‘p sotilgan mahsulotlar).
+- Buyurtma qatorlari nusxa sifatida saqlanadi: mahsulot keyin o‘zgartirilsa yoki o‘chirilsa, eski buyurtmalar buzilmaydi. Majburiy obuna va broadcast ishlaydi. Migratsiya `0009_shop` (faqat yangi jadvallar).
+
 Shuningdek: barcha bot turlarida tugma bosilganda Telegram’ga javob qaytariladi (tugmadagi aylanuvchi indikator qolib ketmaydi).
