@@ -10,7 +10,7 @@ from core.database import AsyncSessionLocal
 from models.course import KIND_COURSE, Course, Enrollment
 from models.movies import KIND_STANDARD
 
-OTHER_MODES = {"cinema": "kino", "booking": "bron", "quiz": "test"}
+OTHER_MODES = {"cinema": "kino", "booking": "bron", "quiz": "test", "shop": "do‘kon"}
 
 
 async def course_home(update: Update, context: ContextTypes.DEFAULT_TYPE):

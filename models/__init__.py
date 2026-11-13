@@ -12,6 +12,9 @@ from .movies import Movie
 from .course import (  # noqa: F401
     Course, CourseModule, CoursePayment, CourseQuestion, CourseSettings, Enrollment, Lesson, LessonFile, LessonProgress,
 )
+from .shop import (  # noqa: F401
+    CartItem, Order, OrderItem, ShopCategory, ShopImage, ShopProduct, ShopSettings, ShopVariant,
+)
 from .quiz import QuizAttempt, QuizPoll, QuizQuestion, QuizSettings, QuizTest  # noqa: F401
 from .booking import (  # noqa: F401
     Booking, BookingDayOff, BookingHours, BookingService, BookingSettings, BookingStaff, BookingStaffService,

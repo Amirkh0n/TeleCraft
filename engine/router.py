@@ -7,7 +7,7 @@ from collections import OrderedDict
 from telegram.error import Forbidden
 
 from core.logger import get_logger
-from engine import booking, cinema, course, forms, quiz
+from engine import booking, cinema, course, forms, quiz, shop
 from engine.audience import set_blocked, touch_user
 from engine.actions import execute_action, get_user_session
 from engine.resolver import (
@@ -87,6 +87,8 @@ async def route_update(bot, update, session, *, client=None):
                 await quiz.handle(bot, update, session, tg)
             elif getattr(bot, "kind", "standard") == "course":
                 await course.handle(bot, update, session, tg)
+            elif getattr(bot, "kind", "standard") == "shop":
+                await shop.handle(bot, update, session, tg)
             elif update.get("callback_query"):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):
