@@ -23,7 +23,7 @@ from constructor.states import (
     WAITING_FOR_ACTION_LINK,
     WAITING_FOR_ADMIN_ID,
 )
-from constructor.ui import show_screen
+from constructor.ui import BOTFATHER, show_screen
 from models.bots import Bot
 from models.menus import Menu
 
@@ -54,7 +54,7 @@ async def add_bot_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     await update.callback_query.message.reply_text(
         "🤖 <b>1/3 — Bot tokeni</b>\n\n"
-        "BotFather’da <code>/newbot</code> yuboring va u bergan tokenni shu chatga jo‘nating.\n\n"
+        f"{BOTFATHER}’da <code>/newbot</code> yuboring va u bergan tokenni shu chatga jo‘nating.\n\n"
         "Token faqat botni ulash uchun ishlatiladi.",
         parse_mode="HTML",
         reply_markup=None,
@@ -96,7 +96,7 @@ async def show_resume_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def resume_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompts = {
-        WAITING_FOR_TOKEN: "🤖 BotFather bergan tokenni yuboring.",
+        WAITING_FOR_TOKEN: f"🤖 {BOTFATHER} bergan tokenni yuboring.",
         WAITING_FOR_START_MESSAGE: "📝 Child botning <code>/start</code> xabarini yuboring.",
         WAITING_FOR_MENU_NAME: "📂 Yangi menu nomini yuboring.",
         WAITING_FOR_MENU_MESSAGE: "📝 Menu ochilganda ko‘rinadigan xabarni yuboring.",
@@ -123,7 +123,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token = validate_bot_token(update.message.text.strip())
     except Exception:
         await update.message.reply_text(
-            "❌ Token formati noto‘g‘ri. BotFather bergan tokenni to‘liq nusxalab yuboring."
+            f"❌ Token formati noto‘g‘ri. {BOTFATHER} bergan tokenni to‘liq nusxalab yuboring.",
+            parse_mode="HTML",
         )
         return
 
@@ -132,7 +133,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bot_info = await telegram_bot.get_me()
     except Exception:
         await update.message.reply_text(
-            "❌ Token tekshirilmadi. U to‘g‘ri ekanini BotFather orqali tekshirib, qayta yuboring."
+            f"❌ Token tekshirilmadi. U to‘g‘ri ekanini {BOTFATHER} orqali tekshirib, qayta yuboring.",
+            parse_mode="HTML",
         )
         return
 
@@ -273,7 +275,7 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_screen(
         update,
         "❓ <b>TeleCraft qanday ishlaydi?</b>\n\n"
-        "1. BotFather’da bot yarating.\n"
+        f"1. {BOTFATHER}’da bot yarating.\n"
         "2. Tokenni shu yerga yuboring.\n"
         "3. Bosh xabar, menu va tugmalarni sozlang.\n"
         "4. Child botga <code>/start</code> yuborib sinang.",

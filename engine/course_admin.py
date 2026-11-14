@@ -143,20 +143,6 @@ async def own_lesson(session, bot, lesson_id):
     return (ls, c) if c else (None, None)
 
 
-async def move(session, items, item_id, delta):
-    """Swap an item with its neighbour and renumber positions 0..n-1."""
-    ids = [i.id for i in items]
-    if item_id not in ids:
-        return
-    i = ids.index(item_id)
-    j = i + delta
-    if 0 <= j < len(items):
-        items[i], items[j] = items[j], items[i]
-    for pos, item in enumerate(items):
-        item.position = pos
-    await session.commit()
-
-
 async def confirm(tg, callback, uid, text, yes, no):
     await show(tg, callback, uid, text, kb_of([[Btn("✅ Ha", callback_data=yes), Btn("✖️ Yo‘q", callback_data=no)]]))
 
@@ -167,7 +153,7 @@ async def courses_list(tg, callback, uid, session, bot, page):
     total = (await session.execute(select(func.count(Course.id)).where(Course.bot_id == bot.id))).scalar() or 0
     pages = max(1, (total + PAGE - 1) // PAGE)
     page = max(0, min(page, pages - 1))
-    rows = (await session.execute(select(Course).where(Course.bot_id == bot.id).order_by(Course.position, Course.id)
+    rows = (await session.execute(select(Course).where(Course.bot_id == bot.id).order_by(Course.id)
                                   .limit(PAGE).offset(page * PAGE))).scalars().all()
     kb = [[Btn(f"{'🟢' if c.is_published else '🚧'} {c.title}"[:60], callback_data=f"ca:c:{c.id}")] for c in rows]
     nav = ([Btn("⬅️", callback_data=f"ca:cl:{page - 1}")] if page else []) + ([Btn("➡️", callback_data=f"ca:cl:{page + 1}")] if page < pages - 1 else [])
@@ -219,11 +205,10 @@ async def modules_screen(tg, callback, uid, session, course):
 
 
 async def module_screen(tg, callback, uid, session, module, course):
-    lessons = list((await session.execute(select(Lesson).where(Lesson.module_id == module.id).order_by(Lesson.position, Lesson.id))).scalars().all())
+    lessons = list((await session.execute(select(Lesson).where(Lesson.module_id == module.id).order_by(Lesson.id))).scalars().all())
     kb = [[Btn(f"{i + 1}. {ls.title}"[:60], callback_data=f"ca:lo:{ls.id}")] for i, ls in enumerate(lessons)]
     kb.append([Btn("➕ Dars qo‘shish", callback_data=f"ca:ln:{module.id}")])
-    kb.append([Btn("✏️ Nomi", callback_data=f"ca:ef:module:{module.id}:title"), Btn("⬆️", callback_data=f"ca:mup:{module.id}"),
-               Btn("⬇️", callback_data=f"ca:mdn:{module.id}"), Btn("🗑", callback_data=f"ca:mdel:{module.id}")])
+    kb.append([Btn("✏️ Nomi", callback_data=f"ca:ef:module:{module.id}:title"), Btn("🗑", callback_data=f"ca:mdel:{module.id}")])
     kb.append(back(f"ca:m:{course.id}", "⬅️ Modullar"))
     await show(tg, callback, uid, f"📂 <b>{esc(module.title)}</b>\nDarslar: {len(lessons)}", kb_of(kb))
 
@@ -242,7 +227,7 @@ async def lesson_screen(tg, callback, uid, session, lesson, course):
           [Btn("✏️ Nomi", callback_data=f + "title"), Btn("📝 Matn", callback_data=f + "text")],
           [Btn("📎 Fayl qo‘shish", callback_data=f"ca:lf:{lesson.id}"), Btn("🧹 Fayllarni tozalash", callback_data=f"ca:lfc:{lesson.id}")],
           [Btn("🎁 Tanishuv darsi" + (" ✅" if lesson.is_preview else ""), callback_data=f"ca:lpv:{lesson.id}")],
-          [Btn("⬆️", callback_data=f"ca:lup:{lesson.id}"), Btn("⬇️", callback_data=f"ca:ldn:{lesson.id}"), Btn("🗑 O‘chirish", callback_data=f"ca:ldel:{lesson.id}")],
+          [Btn("🗑 O‘chirish", callback_data=f"ca:ldel:{lesson.id}")],
           back(f"ca:mo:{lesson.module_id}", "⬅️ Modul")]
     await show(tg, callback, uid, text, kb_of(kb))
 
@@ -310,12 +295,12 @@ async def on_callback(bot, callback, session, tg, us):
         if course is None:
             return await courses_list(tg, callback, uid, session, bot, 0)
         return await course_action(tg, callback, uid, session, bot, us, act, course, arg, en)
-    if act in ("mo", "mup", "mdn", "mdel", "mdelok", "ln"):
+    if act in ("mo", "mdel", "mdelok", "ln"):
         module, course = await own_module(session, bot, n0)
         if module is None:
             return await courses_list(tg, callback, uid, session, bot, 0)
         return await module_action(tg, callback, uid, session, bot, us, act, module, course)
-    if act in ("lo", "lv", "lf", "lfc", "lpv", "lup", "ldn", "ldel", "ldelok"):
+    if act in ("lo", "lv", "lf", "lfc", "lpv", "ldel", "ldelok"):
         lesson, course = await own_lesson(session, bot, n0)
         if lesson is None:
             return await courses_list(tg, callback, uid, session, bot, 0)
@@ -408,9 +393,6 @@ async def delete_lessons(session, lesson_ids):
 async def module_action(tg, callback, uid, session, bot, us, act, module, course):
     if act == "mo":
         return await module_screen(tg, callback, uid, session, module, course)
-    if act in ("mup", "mdn"):
-        await move(session, await core().modules_of(session, course.id), module.id, -1 if act == "mup" else 1)
-        return await modules_screen(tg, callback, uid, session, course)
     if act == "mdel":
         return await confirm(tg, callback, uid, f"🗑 «{esc(module.title)}» moduli va undagi darslar o‘chiriladi. Davom etasizmi?",
                              f"ca:mdelok:{module.id}", f"ca:mo:{module.id}")
@@ -443,11 +425,6 @@ async def lesson_action(tg, callback, uid, session, bot, us, act, lesson, course
         lesson.is_preview = not lesson.is_preview
         await session.commit()
         return await lesson_screen(tg, callback, uid, session, lesson, course)
-    if act in ("lup", "ldn"):
-        items = list((await session.execute(select(Lesson).where(Lesson.module_id == lesson.module_id).order_by(Lesson.position, Lesson.id))).scalars().all())
-        await move(session, items, lesson.id, -1 if act == "lup" else 1)
-        module = await session.get(CourseModule, lesson.module_id)
-        return await module_screen(tg, callback, uid, session, module, course)
     if act == "ldel":
         return await confirm(tg, callback, uid, f"🗑 «{esc(lesson.title)}» darsi o‘chirilsinmi?", f"ca:ldelok:{lesson.id}", f"ca:lo:{lesson.id}")
     if act == "ldelok":
@@ -813,7 +790,7 @@ async def question_action(tg, callback, uid, session, bot, us, act, q_id):
 async def stats_screen(tg, callback, uid, session, bot):
     async def count(model, *conds):
         return (await session.execute(select(func.count(model.id)).where(*conds))).scalar() or 0
-    courses = (await session.execute(select(Course).where(Course.bot_id == bot.id).order_by(Course.position, Course.id))).scalars().all()
+    courses = (await session.execute(select(Course).where(Course.bot_id == bot.id).order_by(Course.id))).scalars().all()
     lines = ["📊 <b>Statistika</b>\n",
              f"📚 Kurslar: {len(courses)}",
              f"👥 Yozilishlar: {await count(Enrollment, Enrollment.bot_id == bot.id)}",
