@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from core.database import AsyncSessionLocal
 from constructor.session import ensure_constructor_user, save_builder_session
-from constructor.ui import show_screen
+from constructor.ui import BOTFATHER, show_screen
 from models.bots import Bot
 from webapp import editor_url
 from models.menus import Menu
@@ -37,7 +37,7 @@ async def show_user_bots(update: Update, context: ContextTypes.DEFAULT_TYPE, bac
         await show_screen(
             update,
             "👋 Xush kelibsiz!\n\nKod yozmasdan Telegram bot yarating. "
-            "Boshlash uchun BotFather’dan olgan tokeningiz kerak bo‘ladi.",
+            f"Boshlash uchun {BOTFATHER}’dan olgan tokeningiz kerak bo‘ladi.",
             [[InlineKeyboardButton("➕ Birinchi botimni yaratish", callback_data="add_bot")],
              [InlineKeyboardButton("📖 Qanday ishlaydi?", callback_data="help")]],
             edit=bool(update.callback_query),

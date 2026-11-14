@@ -407,15 +407,41 @@ async def test_settings_validation(cr):
     assert "Noto‘g‘ri" in screen(cr)["text"]
 
 
-async def test_reorder_lessons_and_modules(cr):
-    c, ls = await make_course(cr, n=3)
-    await press(cr, f"ca:ldn:{ls[0].id}", user=OWNER)
-    order = [x.title for x in await core.lessons_of(cr.session, c.id)]
-    assert order == ["Dars 2", "Dars 1", "Dars 3"]
-    await press(cr, f"ca:lup:{ls[2].id}", user=OWNER)
+async def test_content_is_listed_in_creation_order_not_alphabetical(cr):
+    # titles are alphabetical-reversed and positions are misleading: only creation order (id) may count
+    titles = ["Zebra", "Mango", "Alma"]
+    c = Course(bot_id=cr.bot.id, title="Z kurs", is_published=True)
+    cr.session.add(c)
     await cr.session.commit()
+    c2 = Course(bot_id=cr.bot.id, title="A kurs", is_published=True, position=0)
+    cr.session.add(c2)
+    await cr.session.commit()
+    mods = []
+    for i, t in enumerate(["Yakun", "Boshlash"]):
+        m = CourseModule(course_id=c.id, title=t, position=5 - i)
+        cr.session.add(m)
+        await cr.session.commit()
+        mods.append(m)
+        for j, lt in enumerate(titles):
+            cr.session.add(Lesson(course_id=c.id, module_id=m.id, title=f"{lt} {t}", position=9 - j))
+            await cr.session.commit()
     order = [x.title for x in await core.lessons_of(cr.session, c.id)]
-    assert order == ["Dars 2", "Dars 3", "Dars 1"]
+    assert order == [f"{lt} {t}" for t in ("Yakun", "Boshlash") for lt in titles]
+    assert [m.title for m in await core.modules_of(cr.session, c.id)] == ["Yakun", "Boshlash"]
+    await press(cr, "cr:cat:0")
+    buttons = [b.text for r in screen(cr)["reply_markup"].inline_keyboard for b in r]
+    assert buttons.index(next(b for b in buttons if b.startswith("Z kurs"))) < buttons.index(next(b for b in buttons if b.startswith("A kurs")))
+    await press(cr, f"cr:syl:{c.id}:0")
+    text = screen(cr)["text"]
+    assert text.index("Zebra Yakun") < text.index("Mango Yakun") < text.index("Alma Yakun")
+
+
+async def test_no_reorder_buttons_in_admin(cr):
+    c, ls = await make_course(cr, n=2)
+    await press(cr, f"ca:lo:{ls[0].id}", user=OWNER)
+    assert not any("lup" in d or "ldn" in d for d in datas(cr))
+    await press(cr, f"ca:mo:{ls[0].module_id}", user=OWNER)
+    assert not any("mup" in d or "mdn" in d for d in datas(cr))
 
 
 async def test_delete_lesson_module_course_cascade(cr):

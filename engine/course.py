@@ -81,24 +81,24 @@ def deep_link(bot, course) -> str:
 
 
 async def lessons_of(session, course_id: int) -> list:
-    """Lessons in course order (module order, then lesson order)."""
+    """Lessons in creation order: modules by id, then lessons by id inside each module."""
     rows = (await session.execute(
         select(Lesson).join(CourseModule, CourseModule.id == Lesson.module_id)
         .where(Lesson.course_id == course_id)
-        .order_by(CourseModule.position, CourseModule.id, Lesson.position, Lesson.id)
+        .order_by(CourseModule.id, Lesson.id)  # creation order: first created is first
     )).scalars().all()
     return list(rows)
 
 
 async def modules_of(session, course_id: int) -> list:
     return list((await session.execute(
-        select(CourseModule).where(CourseModule.course_id == course_id).order_by(CourseModule.position, CourseModule.id)
+        select(CourseModule).where(CourseModule.course_id == course_id).order_by(CourseModule.id)
     )).scalars().all())
 
 
 async def files_of(session, lesson_id: int) -> list:
     return list((await session.execute(
-        select(LessonFile).where(LessonFile.lesson_id == lesson_id).order_by(LessonFile.position, LessonFile.id)
+        select(LessonFile).where(LessonFile.lesson_id == lesson_id).order_by(LessonFile.id)
     )).scalars().all())
 
 
@@ -207,7 +207,7 @@ async def show_catalog(tg, callback, chat_id, session, bot, page: int, admin: bo
     total = (await session.execute(select(func.count(Course.id)).where(*conds))).scalar() or 0
     pages = max(1, (total + PAGE - 1) // PAGE)
     page = max(0, min(page, pages - 1))
-    rows = (await session.execute(select(Course).where(*conds).order_by(Course.position, Course.id)
+    rows = (await session.execute(select(Course).where(*conds).order_by(Course.id)
                                   .limit(PAGE).offset(page * PAGE))).scalars().all()
     if not rows:
         return await show(tg, callback, chat_id, "Hozircha kurslar yo‘q. Tez orada qo‘shiladi!",

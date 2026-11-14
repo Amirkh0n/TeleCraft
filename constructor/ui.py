@@ -1,6 +1,10 @@
 from telegram import InlineKeyboardMarkup, Update
 
 
+# Only the word "BotFather" itself is the link (to @BotFather); the rest of the text stays plain.
+BOTFATHER = '<a href="https://t.me/BotFather">BotFather</a>'
+
+
 async def show_screen(update: Update, text: str, keyboard: list[list], *, edit: bool = True) -> None:
     """Render one builder screen without duplicating navigation messages."""
     markup = InlineKeyboardMarkup(keyboard)
