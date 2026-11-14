@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Request, HTTPException
 from sqlalchemy import select
 
@@ -25,12 +27,17 @@ def _check_secret(request: Request, bot: Bot) -> None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
+SLOW_UPDATE_SECONDS = 1.0
+
+
 async def _process_child_webhook(bot_filter, request: Request):
+    started = time.monotonic()
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(Bot).where(bot_filter, Bot.is_active == True)
         )
         bot = result.scalar_one_or_none()
+        lookup = time.monotonic() - started
 
         if not bot:
             raise HTTPException(status_code=404, detail="Bot not found")
@@ -38,6 +45,11 @@ async def _process_child_webhook(bot_filter, request: Request):
         _check_secret(request, bot)
         update = await request.json()
         await route_update(bot, update, session)
+
+    total = time.monotonic() - started
+    if total > SLOW_UPDATE_SECONDS:
+        logger.warning("Slow update %s bot_id=%s kind=%s: total %.2fs (session+bot lookup %.2fs)",
+                       update.get("update_id"), bot.id, bot.kind, total, lookup)
 
     return {"ok": True}
 
