@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -8,6 +8,7 @@ from .base import Base
 KIND_QUIZ = "quiz"
 
 ATTEMPT_ACTIVE, ATTEMPT_FINISHED, ATTEMPT_ABANDONED = "active", "finished", "abandoned"
+GAME_RUNNING, GAME_FINISHED, GAME_STOPPED = "running", "finished", "stopped"
 
 
 class QuizSettings(Base):
@@ -86,3 +87,43 @@ class QuizPoll(Base):
     is_quiz: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     answered: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+
+
+class QuizGame(Base):
+    """A live group contest: one test played by everyone in a group chat at the same time."""
+    __tablename__ = "quiz_games"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bot_id: Mapped[int] = mapped_column(ForeignKey("bots.id"), index=True, nullable=False)
+    test_id: Mapped[int] = mapped_column(ForeignKey("quiz_tests.id", ondelete="CASCADE"), index=True, nullable=False)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)
+    starter_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(10), default=GAME_RUNNING, server_default=GAME_RUNNING, nullable=False)
+    order: Mapped[list] = mapped_column(JSON, nullable=False)  # question ids in the order they are asked
+    total: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    current: Mapped[int] = mapped_column(Integer, default=-1, server_default="-1", nullable=False)  # index of the question asked last
+    limit_sec: Mapped[int] = mapped_column(Integer, default=30, server_default="30", nullable=False)
+    poll_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # set while a question is open
+    poll_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    option_order: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    is_quiz: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    idle_streak: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)  # questions in a row nobody answered
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class QuizGameAnswer(Base):
+    """The first answer of one member to one question of a group game (later votes are ignored)."""
+    __tablename__ = "quiz_game_answers"
+    __table_args__ = (UniqueConstraint("game_id", "qidx", "tg_user_id", name="uq_quiz_game_answer"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey("quiz_games.id", ondelete="CASCADE"), index=True, nullable=False)
+    qidx: Mapped[int] = mapped_column(Integer, nullable=False)
+    tg_user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_name: Mapped[str] = mapped_column(String(120), default="", server_default="", nullable=False)
+    ok: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    points: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    ms: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)

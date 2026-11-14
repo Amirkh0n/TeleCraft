@@ -19,6 +19,7 @@ from engine.booking_reminders import loop as reminders_loop
 from engine.broadcast import resume_pending
 from engine.course_notify import loop as course_notify_loop
 from engine.quiz import resume_pending as resume_quizzes
+from engine.quiz_group import resume_games as resume_group_games
 from engine.telegram_client import close_all_clients
 from models.bots import Bot
 from models.users import User
@@ -74,7 +75,7 @@ async def _resume_broadcasts():
 
 async def _resume_quiz_timers():
     try:
-        count = await resume_quizzes()
+        count = await resume_quizzes() + await resume_group_games()
         if count:
             logger.info("Re-armed %s quiz question timer(s)", count)
     except Exception:

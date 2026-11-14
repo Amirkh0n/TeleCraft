@@ -31,7 +31,9 @@ async def quiz_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{username} ga kirib, test yaratish mumkin:\n"
             "• nom, tavsif va <b>har bir savol uchun vaqt</b>ni kiriting;\n"
             "• savollarni <b>.txt fayl</b> (<code>#savol</code>, <code>+to‘g‘ri</code>, <code>-xato</code>), matn yoki Telegram «Quiz» so‘rovi sifatida yuboring;\n"
-            "• test havolasi (<code>t.me/bot?start=t1</code>) orqali ulashiladi.\n\n"
+            "• test havolasi (<code>t.me/bot?start=t1</code>) orqali ulashiladi;\n"
+            "• <b>guruhda</b>: botni guruhga qo‘shing va <code>/test</code> yozing — savollar hamma uchun bir vaqtda keladi, "
+            "ball + tezlik bo‘yicha jonli reyting chiqadi.\n\n"
             "Admin paneli (<code>/admin</code>): barcha testlarni boshqarish/yashirish, kim test yaratishi, limitlar, statistika. "
             "Adminlarni «👮 Adminlar» bo‘limidan qo‘shing."
         )

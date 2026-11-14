@@ -16,7 +16,7 @@ from telegram.error import TelegramError
 
 from core.database import AsyncSessionLocal
 from core.logger import get_logger
-from engine import cinema, quiz_admin, quiz_create, subscription
+from engine import cinema, quiz_admin, quiz_create, quiz_group, subscription
 from engine.audience import touch_user
 from engine.booking_time import as_utc, utcnow
 from engine.quiz_parse import poll_explanation, poll_view
@@ -520,11 +520,18 @@ HELP = (
 
 async def handle(bot, update, session, tg):
     if update.get("poll_answer"):
-        await on_poll_answer(bot, update["poll_answer"], session, tg)
+        if not await quiz_group.on_poll_answer(bot, update["poll_answer"], session):
+            await on_poll_answer(bot, update["poll_answer"], session, tg)
     elif update.get("callback_query"):
-        await _on_callback(bot, update["callback_query"], session, tg)
+        callback = update["callback_query"]
+        if (callback.get("data") or "").startswith("qg:"):
+            return await quiz_group.handle_callback(bot, callback, session, tg)  # group members are not bot users
+        await _on_callback(bot, callback, session, tg)
     elif update.get("message"):
-        await _on_message(bot, update["message"], session, tg)
+        message = update["message"]
+        if (message.get("chat") or {}).get("type") in quiz_group.GROUP_TYPES:
+            return await quiz_group.handle_message(bot, message, session, tg)
+        await _on_message(bot, message, session, tg)
 
 
 async def _on_callback(bot, callback, session, tg):
