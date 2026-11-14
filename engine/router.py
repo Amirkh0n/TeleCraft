@@ -1,6 +1,7 @@
 """Entry point for every update a child bot receives."""
 import asyncio
 import html
+import time
 import weakref
 from collections import OrderedDict
 
@@ -72,10 +73,13 @@ async def route_update(bot, update, session, *, client=None):
         logger.info("Duplicate update %s for bot_id=%s ignored", update.get("update_id"), bot.id)
         return
 
+    ack_task = None
+    started = time.monotonic()
     try:
         tg = client or await get_client(bot.plain_token)
         if update.get("callback_query"):
-            await _ack(tg, update["callback_query"])
+            # The spinner is stopped in parallel with the handling: no extra round trip before it.
+            ack_task = asyncio.ensure_future(_ack(tg, update["callback_query"]))
         async with _user_lock(bot.id, _sender_id(update)):
             if update.get("my_chat_member"):
                 await _on_membership(bot, update["my_chat_member"], session)
@@ -93,6 +97,8 @@ async def route_update(bot, update, session, *, client=None):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):
                 await _on_message(bot, update["message"], session, tg)
+        if ack_task is not None:
+            await ack_task
     except Forbidden:
         logger.info("bot_id=%s: the user blocked the bot or never started it", bot.id)
         await session.rollback()
