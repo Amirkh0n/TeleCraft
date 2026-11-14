@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = Field(default=100, description="Rate limit per minute")
     RATE_LIMIT_WINDOW: int = Field(default=60, description="Rate limit window in seconds")
     ADMIN_IDS: str = Field(default="", description="List of admin user IDs (comma-separated)")
+    BACKUP_ENABLED: bool = Field(default=True, description="Send a daily database backup to the admins")
+    BACKUP_HOUR: int = Field(default=20, description="Hour of the daily backup (local time of BACKUP_TIMEZONE)")
+    BACKUP_TIMEZONE: str = Field(default="Asia/Tashkent", description="Time zone of BACKUP_HOUR")
     DEBUG: bool = Field(default=False, description="Debug mode")
     TESTING: bool = Field(default=False, description="Testing mode")
 

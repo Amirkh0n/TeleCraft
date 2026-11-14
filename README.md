@@ -116,6 +116,9 @@ CONNECTION_POOL_SIZE=10
 RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW=60
 ADMIN_IDS=123456789,987654321
+BACKUP_ENABLED=True
+BACKUP_HOUR=20
+BACKUP_TIMEZONE=Asia/Tashkent
 DEBUG=False
 TESTING=False
 ```
@@ -450,3 +453,14 @@ Bot panelidagi **🛒 Do‘kon bot** tugmasi botni onlayn do‘konga aylantiradi
 - Buyurtma qatorlari nusxa sifatida saqlanadi: mahsulot keyin o‘zgartirilsa yoki o‘chirilsa, eski buyurtmalar buzilmaydi. Majburiy obuna va broadcast ishlaydi. Migratsiya `0009_shop` (faqat yangi jadvallar).
 
 Shuningdek: barcha bot turlarida tugma bosilganda Telegram’ga javob qaytariladi (tugmadagi aylanuvchi indikator qolib ketmaydi).
+
+## Kunlik zaxira nusxa (backup)
+
+Har kuni `BACKUP_HOUR` (odatda 20:00, `BACKUP_TIMEZONE` = Asia/Tashkent) da butun baza `.sql.gz` fayl sifatida
+asosiy botning `ADMIN_IDS` dagi adminlariga yuboriladi. Adminlar asosiy botga kamida bir marta `/start` bosgan bo‘lishi
+kerak. Adminlar istalgan payt `/backup` buyrug‘i bilan ham nusxa so‘rashi mumkin. Xato bo‘lsa adminlarga xabar boradi.
+
+Tiklash (faqat **bo‘sh** PostgreSQL bazaga): `gunzip -c telecraft_backup_*.sql.gz | psql "$DATABASE_URL"`.
+Fayl 49 MB dan oshsa bo‘laklarga bo‘linadi: `cat telecraft_backup_*.part* > backup.sql.gz`.
+Bot tokenlari bazada shifrlangan: `ENCRYPTION_KEY` ni alohida xavfsiz joyda saqlang, usiz tiklangan botlar ishlamaydi.
+Fayl maxfiy ma‘lumot saqlaydi, uni boshqalarga bermang.

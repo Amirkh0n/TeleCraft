@@ -42,5 +42,5 @@ async def env(tmp_path, monkeypatch):
         await session.commit()
     async with maker() as session:
         bot = (await session.execute(select(Bot))).scalar_one()
-        yield SimpleNamespace(maker=maker, tg=tg, bot=bot, session=session)
+        yield SimpleNamespace(maker=maker, tg=tg, bot=bot, session=session, engine=engine)
     await engine.dispose()
