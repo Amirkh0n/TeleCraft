@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from sqlalchemy import select, func
 
-from core.database import AsyncSessionLocal, db_config, init_models
+from core.backup import backup_loop
+from core.database import AsyncSessionLocal, db_config, engine, init_models
 from webhook.handler import router as webhook_router
 from webapp.api import router as webapp_router
 from webapp.api_audience import router as webapp_audience_router
@@ -62,6 +63,7 @@ app.middleware("http")(rate_limit_middleware)
 constructor_application = None
 reminder_task = None
 course_task = None
+backup_task = None
 
 
 async def _resume_broadcasts():
@@ -111,6 +113,10 @@ async def on_startup():
     reminder_task = asyncio.create_task(reminders_loop())
     global course_task
     course_task = asyncio.create_task(course_notify_loop())
+    if settings.BACKUP_ENABLED:
+        global backup_task
+        backup_task = asyncio.create_task(
+            backup_loop(lambda: constructor_application.bot if constructor_application else None, engine))
     logger.info("TeleCraft Constructor API started")
 
 
@@ -120,6 +126,8 @@ async def on_shutdown():
         reminder_task.cancel()
     if course_task:
         course_task.cancel()
+    if backup_task:
+        backup_task.cancel()
     if constructor_application:
         await constructor_application.stop()
         await constructor_application.shutdown()

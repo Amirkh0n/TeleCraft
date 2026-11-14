@@ -21,6 +21,7 @@ from constructor.flows.buttons import show_buttons, add_button_click
 from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
 from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc
+from constructor.flows.backup import backup_now
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click
 
@@ -29,6 +30,7 @@ def build_constructor_application(token: str):
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel_action))
+    app.add_handler(CommandHandler("backup", backup_now))
     # Anchored new-style callbacks go first: the legacy patterns below are unanchored substrings.
     app.add_handler(CallbackQueryHandler(screens.show_settings, pattern=r"^scr:open:\d+$"))
     app.add_handler(CallbackQueryHandler(screens.ask_media, pattern=r"^scr:media:\d+$"))
