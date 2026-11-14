@@ -44,13 +44,19 @@ async def pick(env, prefix, user=USER, index=0):
     return data
 
 
+async def pick_day(env, user=USER):
+    """The first day that is not today: today's free slots depend on the time of day the suite runs."""
+    days = [d for d in datas(env) if d and d.startswith("bk:d:")]
+    await press(env, days[1] if len(days) > 1 else days[0], user)
+
+
 async def book(env, user=USER, phone="+998901234567", index=0, service=None):
     await send(env, message("/start", user=user))
     await press(env, "bk:new", user)
     await press(env, f"bk:s:{(service or env.service).id}", user)
     if not any(d.startswith("bk:d:") for d in datas(env)):  # specialist screen first
         await press(env, "bk:m:0", user)
-    await pick(env, "bk:d:", user)
+    await pick_day(env, user)
     await pick(env, "bk:t:", user, index)
     if "Telefon" in (screen(env).get("text") or ""):
         await send(env, message(phone, user=user))
@@ -96,7 +102,7 @@ async def test_slot_taken_in_between_is_refused(shop):
     await send(shop, message("/start"))
     await press(shop, "bk:new")
     await press(shop, f"bk:s:{shop.service.id}")
-    await pick(shop, "bk:d:")
+    await pick_day(shop)
     slot = await pick(shop, "bk:t:")
     await send(shop, message("+998901234567"))
     await book(shop, user=USER2, phone="+998902222222")  # somebody else books the very first slot meanwhile
@@ -168,7 +174,7 @@ async def test_bad_phone_is_asked_again(shop):
     await send(shop, message("/start"))
     await press(shop, "bk:new")
     await press(shop, f"bk:s:{shop.service.id}")
-    await pick(shop, "bk:d:")
+    await pick_day(shop)
     await pick(shop, "bk:t:")
     await send(shop, message("abc"))
     assert "noto‘g‘ri" in screen(shop)["text"]

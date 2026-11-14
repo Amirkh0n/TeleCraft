@@ -51,6 +51,10 @@ class FakeTG:
     async def stop_poll(self, **kw):
         return self._record("stop_poll", **kw)
 
+    async def get_chat_member(self, **kw):
+        self._record("get_chat_member", **kw)
+        return SimpleNamespace(status="administrator" if kw.get("user_id") in getattr(self, "chat_admins", set()) else "member")
+
     async def get_file(self, file_id):
         data = getattr(self, "files", {}).get(file_id, b"")
         return SimpleNamespace(file_id=file_id, download_as_bytearray=self._download(data))

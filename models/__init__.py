@@ -15,7 +15,9 @@ from .course import (  # noqa: F401
 from .shop import (  # noqa: F401
     CartItem, Order, OrderItem, ShopCategory, ShopImage, ShopProduct, ShopSettings, ShopVariant,
 )
-from .quiz import QuizAttempt, QuizPoll, QuizQuestion, QuizSettings, QuizTest  # noqa: F401
+from .quiz import (  # noqa: F401
+    QuizAttempt, QuizGame, QuizGameAnswer, QuizPoll, QuizQuestion, QuizSettings, QuizTest,
+)
 from .booking import (  # noqa: F401
     Booking, BookingDayOff, BookingHours, BookingService, BookingSettings, BookingStaff, BookingStaffService,
 )
