@@ -20,7 +20,7 @@ from constructor.flows.menus import show_menus, add_menu_click, edit_menu_messag
 from constructor.flows.buttons import show_buttons, add_button_click
 from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
-from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc
+from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc, join as jnpc
 from constructor.flows.backup import backup_now
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click
@@ -60,6 +60,8 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(crsc.course_toggle, pattern=r"^crsc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(shpc.shop_home, pattern=r"^shpc:home$"))
     app.add_handler(CallbackQueryHandler(shpc.shop_toggle, pattern=r"^shpc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(jnpc.join_home, pattern=r"^jnpc:home$"))
+    app.add_handler(CallbackQueryHandler(jnpc.join_toggle, pattern=r"^jnpc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(cin.channel_click, pattern=r"^cin:ch$"))
     app.add_handler(CallbackQueryHandler(cin.channel_delete, pattern=r"^cin:chdel$"))
     app.add_handler(CallbackQueryHandler(cin.admins_home, pattern=r"^adm:home$"))

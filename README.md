@@ -454,6 +454,23 @@ Bot panelidagi **🛒 Do‘kon bot** tugmasi botni onlayn do‘konga aylantiradi
 
 Shuningdek: barcha bot turlarida tugma bosilganda Telegram’ga javob qaytariladi (tugmadagi aylanuvchi indikator qolib ketmaydi).
 
+## Ariza bot rejimi
+
+Kanal yoki guruhga «so‘rov bilan qo‘shilish» orqali kelgan arizalarni (`chat_join_request`) qabul qiladi.
+Konstruktorda botni tanlab «📨 Ariza bot» → «Ariza botga aylantirish».
+
+1. Botni kanal/guruhga **administrator** qiling («Foydalanuvchilarni taklif qilish» huquqi bilan): u ro‘yxatda o‘zi paydo bo‘ladi.
+2. Child botda `/admin` → kanalni tanlang va sozlang:
+   - **rejim:** ⚡️ avto-qabul, 🖐 qo‘lda qabul (adminlarga ✅/❌ xabar boradi), 🤖 captcha (tugmani bosgan avto-qabul qilinadi);
+   - **kechikish:** darhol, 30 soniya, 5 daqiqa yoki 1 soat keyin qabul;
+   - **anketa:** 1–3 ta savol, javoblar adminga ariza bilan birga boradi;
+   - **havolalar:** nomli «so‘rov bilan qo‘shilish» havolalari (Instagram, reklama…) va har biri bo‘yicha statistika;
+   - hammasini birdan qabul/rad qilish, to‘xtatib turish, o‘z salomlashish/qabul/rad matnlari (`{name}`, `{chat}`).
+3. Captcha yoki savolga 60 daqiqa ichida javob bermagan ariza avtomatik rad etiladi.
+
+Telegram arizachiga faqat ariza ochiq paytda yozishga ruxsat beradi. Xabar yetib bormasa, ariza adminlarga qo‘lda qaror uchun yuboriladi.
+Mavjud botlar uchun `chat_join_request` yangi deploydan keyin webhook yangilanganda yoqiladi.
+
 ## Kunlik zaxira nusxa (backup)
 
 Har kuni `BACKUP_HOUR` (odatda 20:00, `BACKUP_TIMEZONE` = Asia/Tashkent) da butun baza `.sql.gz` fayl sifatida

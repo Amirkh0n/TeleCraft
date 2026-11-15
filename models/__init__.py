@@ -24,3 +24,4 @@ from .booking import (  # noqa: F401
 from .audience import BotUser, RequiredChannel, Broadcast
 from .analytics import AnalyticsEvent, BotStats, UserStats, BotMetrics
 from .schemas import AnalyticsEvent as SchemaAnalyticsEvent, BotStats as SchemaBotStats
+from .join import JoinChat, JoinLink, JoinRequest, JoinSettings  # noqa: F401

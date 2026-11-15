@@ -23,7 +23,8 @@ class FakeTG:
         self.blocked_chats = set()
         self._next_id = 100
 
-    def _record(self, name, **kw):
+    def _record(self, _name, **kw):
+        name = _name
         if kw.get("chat_id") in self.blocked_chats:
             raise Forbidden("bot was blocked by the user")
         self.calls.append((name, kw))
@@ -64,6 +65,24 @@ class FakeTG:
         async def download_as_bytearray(*a, **kw):
             return bytearray(data)
         return download_as_bytearray
+
+    async def approve_chat_join_request(self, **kw):
+        if getattr(self, "join_error", None):
+            raise self.join_error
+        return self._record("approve_chat_join_request", **kw)
+
+    async def decline_chat_join_request(self, **kw):
+        if getattr(self, "join_error", None):
+            raise self.join_error
+        return self._record("decline_chat_join_request", **kw)
+
+    async def create_chat_invite_link(self, **kw):
+        self._links = getattr(self, "_links", 0) + 1
+        self._record("create_chat_invite_link", **kw)
+        return SimpleNamespace(invite_link=f"https://t.me/+link{self._links}")
+
+    async def revoke_chat_invite_link(self, **kw):
+        return self._record("revoke_chat_invite_link", **kw)
 
     async def delete_message(self, **kw):
         return self._record("delete_message", **kw)

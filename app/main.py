@@ -19,6 +19,7 @@ from core.webhook_manager import refresh_webhooks
 from engine.booking_reminders import loop as reminders_loop
 from engine.broadcast import resume_pending
 from engine.course_notify import loop as course_notify_loop
+from engine.join import loop as join_loop
 from engine.quiz import resume_pending as resume_quizzes
 from engine.quiz_group import resume_games as resume_group_games
 from engine.telegram_client import close_all_clients
@@ -64,6 +65,7 @@ constructor_application = None
 reminder_task = None
 course_task = None
 backup_task = None
+join_task = None
 
 
 async def _resume_broadcasts():
@@ -113,6 +115,8 @@ async def on_startup():
     reminder_task = asyncio.create_task(reminders_loop())
     global course_task
     course_task = asyncio.create_task(course_notify_loop())
+    global join_task
+    join_task = asyncio.create_task(join_loop())
     if settings.BACKUP_ENABLED:
         global backup_task
         backup_task = asyncio.create_task(
@@ -128,6 +132,8 @@ async def on_shutdown():
         course_task.cancel()
     if backup_task:
         backup_task.cancel()
+    if join_task:
+        join_task.cancel()
     if constructor_application:
         await constructor_application.stop()
         await constructor_application.shutdown()
