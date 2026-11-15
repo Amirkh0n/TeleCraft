@@ -278,3 +278,9 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .bars .track { height: 12px; }
 .bars .track .fill { transition: width .4s ease; background: var(--turquoise); }
 .tab { font-size: 11.5px; }
+.tabbar.five { grid-template-columns: repeat(5, 1fr); }
+.tabbar.five .tab { font-size: 10.5px; }
+.row.static { cursor: default; }
+.row.static:hover { border-color: transparent; }
+.row .ico { font-size: 20px; }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); font-size: 14px; }
