@@ -10,7 +10,7 @@ from core.database import AsyncSessionLocal
 from models.movies import KIND_STANDARD
 from models.shop import KIND_SHOP, Order, ShopProduct
 
-OTHER_MODES = {"cinema": "kino", "booking": "bron", "quiz": "test", "course": "kurs", "join": "ariza"}
+OTHER_MODES = {"cinema": "kino", "booking": "bron", "quiz": "test", "course": "kurs", "join": "ariza", "paid": "pullik kanal"}
 
 
 async def shop_home(update: Update, context: ContextTypes.DEFAULT_TYPE):

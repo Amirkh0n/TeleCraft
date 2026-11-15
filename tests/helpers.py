@@ -84,6 +84,15 @@ class FakeTG:
     async def revoke_chat_invite_link(self, **kw):
         return self._record("revoke_chat_invite_link", **kw)
 
+    async def ban_chat_member(self, **kw):
+        return self._record("ban_chat_member", **kw)
+
+    async def unban_chat_member(self, **kw):
+        return self._record("unban_chat_member", **kw)
+
+    async def edit_message_caption(self, **kw):
+        return self._record("edit_message_caption", **kw)
+
     async def delete_message(self, **kw):
         return self._record("delete_message", **kw)
 

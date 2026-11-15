@@ -25,3 +25,5 @@ from .audience import BotUser, RequiredChannel, Broadcast
 from .analytics import AnalyticsEvent, BotStats, UserStats, BotMetrics
 from .schemas import AnalyticsEvent as SchemaAnalyticsEvent, BotStats as SchemaBotStats
 from .join import JoinChat, JoinLink, JoinRequest, JoinSettings  # noqa: F401
+
+from .paid import PaidChannel, PaidPayment, PaidPlan, PaidPlanChannel, PaidPromo, PaidSettings, PaidSub  # noqa: F401

@@ -10,7 +10,7 @@ from core.database import AsyncSessionLocal
 from models.join import KIND_JOIN, OPEN_STATUSES, JoinChat, JoinRequest
 from models.movies import KIND_STANDARD
 
-OTHER_MODES = {"cinema": "kino", "booking": "bron", "quiz": "test", "course": "kurs", "shop": "do‘kon"}
+OTHER_MODES = {"cinema": "kino", "booking": "bron", "quiz": "test", "course": "kurs", "shop": "do‘kon", "paid": "pullik kanal"}
 
 
 async def join_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
