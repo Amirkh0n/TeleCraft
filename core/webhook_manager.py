@@ -16,8 +16,9 @@ def build_webhook_url(token: str) -> str:
     return f"{settings.PUBLIC_BASE_URL.rstrip('/')}/h/{token_hash(token)}"
 
 
+# chat_join_request is needed by join-request bots
 # poll_answer is needed by quiz bots (non-anonymous polls report who voted for what)
-ALLOWED_UPDATES = ('message', 'callback_query', 'my_chat_member', 'poll_answer')
+ALLOWED_UPDATES = ('message', 'callback_query', 'my_chat_member', 'poll_answer', 'chat_join_request')
 
 
 async def set_webhook(token: str, webhook_url: str) -> bool:

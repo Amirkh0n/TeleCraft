@@ -8,7 +8,7 @@ from collections import OrderedDict
 from telegram.error import Forbidden
 
 from core.logger import get_logger
-from engine import booking, cinema, course, forms, quiz, shop
+from engine import booking, cinema, course, forms, join, quiz, shop
 from engine.audience import set_blocked, touch_user
 from engine.actions import execute_action, get_user_session
 from engine.resolver import (
@@ -58,7 +58,7 @@ def _user_lock(bot_id: int, user_id) -> asyncio.Lock:
 
 def _sender_id(update: dict):
     source = (update.get("callback_query") or update.get("message") or update.get("my_chat_member")
-              or update.get("poll_answer") or {})
+              or update.get("chat_join_request") or update.get("poll_answer") or {})
     return (source.get("from") or source.get("user") or {}).get("id")
 
 
@@ -83,6 +83,11 @@ async def route_update(bot, update, session, *, client=None):
         async with _user_lock(bot.id, _sender_id(update)):
             if update.get("my_chat_member"):
                 await _on_membership(bot, update["my_chat_member"], session)
+                if getattr(bot, "kind", "standard") == "join":
+                    await join.on_membership(bot, update["my_chat_member"], session, tg)
+            elif update.get("chat_join_request"):
+                if getattr(bot, "kind", "standard") == "join":
+                    await join.handle(bot, update, session, tg)
             elif getattr(bot, "kind", "standard") == "cinema":
                 await cinema.handle(bot, update, session, tg)
             elif getattr(bot, "kind", "standard") == "booking":
@@ -93,6 +98,8 @@ async def route_update(bot, update, session, *, client=None):
                 await course.handle(bot, update, session, tg)
             elif getattr(bot, "kind", "standard") == "shop":
                 await shop.handle(bot, update, session, tg)
+            elif getattr(bot, "kind", "standard") == "join":
+                await join.handle(bot, update, session, tg)
             elif update.get("callback_query"):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):
