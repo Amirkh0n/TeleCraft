@@ -119,6 +119,10 @@ ADMIN_IDS=123456789,987654321
 BACKUP_ENABLED=True
 BACKUP_HOUR=20
 BACKUP_TIMEZONE=Asia/Tashkent
+PLANS_ENFORCE=True
+PLAN_CARD_NUMBER=8600123412341234
+PLAN_CARD_HOLDER=ISM FAMILIYA
+MAIN_BOT_USERNAME=telecraft_bot
 DEBUG=False
 TESTING=False
 ```
@@ -501,3 +505,30 @@ Tiklash (faqat **bo‘sh** PostgreSQL bazaga): `gunzip -c telecraft_backup_*.sql
 Fayl 49 MB dan oshsa bo‘laklarga bo‘linadi: `cat telecraft_backup_*.part* > backup.sql.gz`.
 Bot tokenlari bazada shifrlangan: `ENCRYPTION_KEY` ni alohida xavfsiz joyda saqlang, usiz tiklangan botlar ishlamaydi.
 Fayl maxfiy ma‘lumot saqlaydi, uni boshqalarga bermang.
+
+## Tariflar va to‘lov
+
+Asosiy botda **💳 Tarif va to‘lov** (yoki `/tarif`). To‘lov karta + chek rasmi orqali, asosiy bot adminlari (`ADMIN_IDS`)
+✅/❌ bilan tasdiqlaydi. Karta `PLAN_CARD_NUMBER` / `PLAN_CARD_HOLDER` da. Cheklovlarni butunlay o‘chirish: `PLANS_ENFORCE=False`.
+
+| | Free | Start | Pro | Business |
+|---|---|---|---|---|
+| Narx (oyiga) | 0 | 29 000 | 79 000 | 149 000 |
+| Bot soni | 1 | 3 | 10 | cheksiz |
+| Bot foydalanuvchilari | 20 | 1 000 | cheksiz | cheksiz |
+| Rejimlar | oddiy, kino, test | + bron, ariza | + kurs, do‘kon, pullik kanal | hammasi |
+| Ommaviy xabar (oyiga, har bot) | 1 | 4 | cheksiz | cheksiz |
+| «TeleCraft yordamida yaratilgan» | bor | bor | yo‘q | yo‘q |
+
+- Chegirma: 3 oyga −10%, 12 oyga −25% (narx minglarga yaxlitlanadi).
+- **7 kunlik bepul Pro**: har bir egaga bir marta.
+- **Bitta botni alohida ochish** (oyiga): oddiy 15 000, kino 20 000, test 20 000, bron 30 000, ariza 25 000, kurs 40 000,
+  pullik kanal 40 000, do‘kon 50 000. To‘langan bot cheksiz foydalanuvchi bilan, yozuvsiz va shu rejimda ishlaydi
+  (bot rejimi o‘zgarsa, to‘lov unga tatbiq etilmaydi). Tarif va bot to‘lovidan qaysi biri keng bo‘lsa, o‘sha amal qiladi.
+- Muddat tugagach 3 kunlik imtiyoz, so‘ng Free cheklovlari. **Ma’lumotlar o‘chmaydi**: yopiq rejimdagi bot oddiy rejimda
+  ishlaydi, foydalanuvchi limitiga yetgan botga yangi odamlar kirmaydi (eskilari ishlayveradi). Tugashiga 3 va 1 kun
+  qolganda, imtiyoz boshlanganda va Free ga tushganda egaga xabar boradi; bot limitga yetganda ham.
+- Platforma adminlari (`ADMIN_IDS`) cheklanmaydi. Admin `/payments` bilan hal qilinmagan to‘lovlarni qayta oladi.
+- Migration `0013`: botlari bor mavjud egalarga bir martalik **30 kunlik Pro** beriladi (hech narsa to‘satdan to‘xtamasligi uchun).
+- Mini App «Rejim» bo‘limida tarif kartasi, foydalanuvchi soni va yopiq rejimlar (🔒) ko‘rinadi.
+- Zaxira: tarif jadvalidagi «zaxira nusxa» egalar uchun alohida funksiya emas, hozircha faqat platforma adminlariga kunlik backup bor.

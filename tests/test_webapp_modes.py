@@ -185,3 +185,23 @@ async def test_other_users_cannot_read_or_change_the_mode(mc):
 
 async def test_requires_authentication(mc):
     assert (await mc.get(f"/api/v1/bots/{mc.env.bot.id}/mode")).status_code == 401
+
+
+async def test_mode_payload_carries_the_plan_card(mc, monkeypatch):
+    from core import plans
+    monkeypatch.setattr(plans.settings, "PLANS_ENFORCE", True)
+    plans.invalidate()
+    data = await mode(mc)
+    plan = data["plan"]
+    assert plan["enforced"] and plan["plan"] == "Free" and plan["user_cap"] == 20 and plan["watermark"]
+    assert "shop" not in plan["allowed_kinds"] and "cinema" in plan["allowed_kinds"]
+
+
+async def test_switching_to_a_locked_mode_answers_402(mc, monkeypatch):
+    from core import plans
+    monkeypatch.setattr(plans.settings, "PLANS_ENFORCE", True)
+    plans.invalidate()
+    response = await mc.put(f"/api/v1/bots/{mc.env.bot.id}/mode", json={"kind": "shop"}, headers=mc.hdr)
+    assert response.status_code == 402 and "Pro" in response.json()["detail"] and "<b>" not in response.json()["detail"]
+    ok = await mc.put(f"/api/v1/bots/{mc.env.bot.id}/mode", json={"kind": "cinema"}, headers=mc.hdr)
+    assert ok.status_code == 200

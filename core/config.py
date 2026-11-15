@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     BACKUP_ENABLED: bool = Field(default=True, description="Send a daily database backup to the admins")
     BACKUP_HOUR: int = Field(default=20, description="Hour of the daily backup (local time of BACKUP_TIMEZONE)")
     BACKUP_TIMEZONE: str = Field(default="Asia/Tashkent", description="Time zone of BACKUP_HOUR")
+    PLANS_ENFORCE: bool = Field(default=True, description="Apply plan limits (Free/Start/Pro/Business) to owners and bots")
+    PLAN_CARD_NUMBER: str = Field(default="", description="Card number owners pay plans to (shown in the main bot)")
+    PLAN_CARD_HOLDER: str = Field(default="", description="Name on that card")
+    MAIN_BOT_USERNAME: str = Field(default="", description="Main bot username (without @) for the Free brand footer")
     DEBUG: bool = Field(default=False, description="Debug mode")
     TESTING: bool = Field(default=False, description="Testing mode")
 

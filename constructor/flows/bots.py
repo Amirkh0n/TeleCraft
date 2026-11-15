@@ -39,6 +39,7 @@ async def show_user_bots(update: Update, context: ContextTypes.DEFAULT_TYPE, bac
             "👋 Xush kelibsiz!\n\nKod yozmasdan Telegram bot yarating. "
             f"Boshlash uchun {BOTFATHER}’dan olgan tokeningiz kerak bo‘ladi.",
             [[InlineKeyboardButton("➕ Birinchi botimni yaratish", callback_data="add_bot")],
+             [InlineKeyboardButton("💳 Tarif va to‘lov", callback_data="plx:home")],
              [InlineKeyboardButton("📖 Qanday ishlaydi?", callback_data="help")]],
             edit=bool(update.callback_query),
         )
@@ -49,6 +50,7 @@ async def show_user_bots(update: Update, context: ContextTypes.DEFAULT_TYPE, bac
         for bot in bots
     ]
     keyboard.append([InlineKeyboardButton("➕ Yangi bot", callback_data="add_bot")])
+    keyboard.append([InlineKeyboardButton("💳 Tarif va to‘lov", callback_data="plx:home")])
     keyboard.append([InlineKeyboardButton("❓ Yordam", callback_data="help")])
     await show_screen(
         update,
@@ -114,7 +116,8 @@ async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id: i
         [InlineKeyboardButton("💎 Pullik kanal", callback_data="pdc:home"),
          InlineKeyboardButton("👮 Adminlar", callback_data="adm:home")],
         [InlineKeyboardButton("🧪 Sinab ko‘rish", callback_data="test_bot")],
-        [InlineKeyboardButton("📊 Holat", callback_data="bot_status")],
+        [InlineKeyboardButton("📊 Holat", callback_data="bot_status"),
+         InlineKeyboardButton("💳 Tarif", callback_data="plx:home")],
         [InlineKeyboardButton("⬅️ Botlarim", callback_data="back_to_bots")],
     ]
     await show_screen(update, text, keyboard, edit=bool(update.callback_query))

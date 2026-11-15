@@ -13,7 +13,10 @@ from constructor.flows.actions import handle_action_text, handle_action_link, ha
 async def messages(update, context):
     state = context.user_data.get('state')
 
-    if state == states.WAITING_FOR_TOKEN:
+    if state == states.WAITING_FOR_PLAN_RECEIPT:
+        from constructor.flows.plans import receipt_text
+        await receipt_text(update, context)
+    elif state == states.WAITING_FOR_TOKEN:
         await handle_token(update, context)
     elif state == states.WAITING_FOR_START_MESSAGE:
         await handle_start_message(update, context)

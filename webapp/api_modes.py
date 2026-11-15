@@ -7,6 +7,8 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constructor.flows.cinema import set_kind
+from core import plans
+from core.plans import plain_text
 from engine.booking_time import utcnow
 from models import booking as bk, course as cr, join as jn, paid as pd, quiz as qz, shop as sh
 from models.audience import BotUser
@@ -127,9 +129,29 @@ async def payment_settings(session: AsyncSession, bot) -> dict | None:
     return out
 
 
+async def plan_info(session: AsyncSession, bot) -> dict:
+    """What the owner's plan (or this bot's own payment) allows: shown as a card in the Mini App."""
+    now = utcnow()
+    limits = await plans.bot_limits(session, bot, now, use_cache=False)
+    acc = await plans.get_account(session, bot.owner_id)
+    code, status = plans.state_of(acc, now)
+    lic = (await session.execute(select(plans.BotLicense).where(plans.BotLicense.bot_id == bot.id))).scalar_one_or_none()
+    users = (await session.execute(select(func.count(BotUser.id)).where(BotUser.bot_id == bot.id))).scalar() or 0
+    plan = await plans.owner_plan(session, bot.owner_id, now)
+    return {
+        "enforced": bool(plans.settings.PLANS_ENFORCE), "plan": plan.title, "status": status,
+        "expires_at": acc.expires_at.isoformat() if acc and status != "free" else None,
+        "licensed": limits.licensed, "license_expires_at": lic.expires_at.isoformat() if lic and limits.licensed else None,
+        "users": users, "user_cap": limits.user_cap, "kind_ok": limits.kind_ok,
+        "watermark": limits.watermark, "broadcasts": limits.broadcasts,
+        "allowed_kinds": list(plan.kinds),
+    }
+
+
 async def mode_out(session: AsyncSession, bot) -> dict:
     icon, name, about, steps = MODES.get(bot.kind, MODES[STANDARD])
     return {
+        "plan": await plan_info(session, bot),
         "kind": bot.kind, "icon": icon, "name": name, "about": about, "steps": steps,
         "metrics": await metrics(session, bot), "payment": await payment_settings(session, bot),
         "kinds": [{"kind": k, "icon": v[0], "name": v[1], "about": v[2]} for k, v in MODES.items()],
@@ -147,7 +169,10 @@ async def put_mode(bot_id: int, body: ModeIn, user: User = Depends(current_user)
     if body.kind not in MODES:
         raise HTTPException(status_code=422, detail="Noma’lum rejim.")
     if body.kind != bot.kind:
-        await set_kind(session, bot, body.kind)
+        try:
+            await set_kind(session, bot, body.kind)
+        except plans.PlanError as exc:
+            raise HTTPException(status_code=402, detail=plain_text(str(exc))) from None
     return {"bot": bot_out(bot), "mode": await mode_out(session, bot)}
 
 

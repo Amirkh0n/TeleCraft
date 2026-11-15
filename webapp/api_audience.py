@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram.error import TelegramError
 
+from core import plans
+from core.plans import plain_text
 from engine import broadcast as broadcast_engine
 from engine import subscription
 from engine.telegram_client import get_client
@@ -152,6 +154,10 @@ async def send_broadcast(broadcast_id: int, user: User = Depends(current_user), 
     b, bot = await owned_broadcast(session, user, broadcast_id)
     if not await broadcast_engine.audience_size(session, bot.id):
         raise HTTPException(status_code=409, detail="Hozircha xabar yuboriladigan foydalanuvchi yo‘q.")
+    try:
+        await plans.check_broadcast(session, bot)
+    except plans.PlanError as exc:
+        raise HTTPException(status_code=402, detail=plain_text(str(exc))) from None
     result = await broadcast_engine.start(session, b.id)
     if result == "busy":
         raise HTTPException(status_code=409, detail="Boshqa xabar hali yuborilmoqda. Tugashini kuting.")

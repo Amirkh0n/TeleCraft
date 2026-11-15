@@ -30,6 +30,11 @@ from models.menus import Menu
 logger = get_logger("handlers")
 
 
+def plans_plain(text: str) -> str:
+    from constructor.flows.plans import plain
+    return plain(text)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Register the constructor user and resume their most recent builder context."""
     tg_user = update.effective_user
@@ -43,8 +48,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def add_bot_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from core import plans
+    from constructor.flows.plans import deny
     tg_user = update.effective_user
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
+    try:
+        async with AsyncSessionLocal() as session:
+            await plans.check_new_bot(session, user.id)
+    except plans.PlanError as exc:
+        await deny(update, str(exc))
+        return
     await save_builder_session(
         user.id,
         context,
@@ -148,6 +161,14 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if bot is None:
+            from core import plans
+            try:
+                await plans.check_new_bot(session, user.id)
+            except plans.PlanError as exc:
+                await update.message.reply_text(
+                    plans_plain(str(exc)),
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💳 Tariflar", callback_data="plx:home")]]))
+                return
             bot = Bot(
                 owner_id=user.id,
                 name=bot_info.first_name or bot_info.username or "Yangi bot",

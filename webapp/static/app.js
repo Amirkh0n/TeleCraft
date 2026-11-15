@@ -351,6 +351,7 @@ function modePage() {
   const std = m.kind === "standard";
   return h("div", { class: "page" }, h("h2", { text: "Rejim" }),
     h("div", { class: "row static" }, h("div", { class: "ico", text: m.icon }), h("div", { class: "grow" }, h("b", { text: m.name }), h("small", { text: m.about }))),
+    planCard(m.plan),
     !std && m.metrics.length ? h("div", { class: "facts", style: "margin-top:14px" }, m.metrics.map((x) =>
       h("div", { class: "fact", style: x.money ? "grid-column:1/-1" : null }, h("b", { text: x.money ? money(x.value) : String(x.value) }), h("small", { text: x.label })))) : null,
     h("div", { class: "section" }, h("h3", { text: std ? "Boshlash" : "Ishga tushirish" }), h("ol", { class: "steps" }, m.steps.map((s) => h("li", { text: s })))),
@@ -358,6 +359,19 @@ function modePage() {
     h("div", { class: "section" }, h("h3", { text: "Rejimni almashtirish" }),
       h("p", { class: "hint", text: "Tayyor rejimga o‘tsangiz, ekran va formalaringiz o‘chmaydi: oddiy rejimga qaytganda yana ishlaydi." }),
       h("button", { class: "btn soft block", onClick: openModeSwitch }, "Rejimni tanlash")));
+}
+function planCard(p) {
+  if (!p || !p.enforced) return null;
+  const date = (iso) => new Date(iso).toLocaleDateString("uz-UZ");
+  const until = p.licensed ? `Bot alohida to‘langan: ${date(p.license_expires_at)} gacha`
+    : p.expires_at ? `${p.plan} · ${date(p.expires_at)} gacha${p.status === "grace" ? " (imtiyoz muddati)" : ""}` : `${p.plan} tarif`;
+  const cap = p.licensed || p.user_cap == null ? `${p.users} foydalanuvchi` : `${p.users} / ${p.user_cap} foydalanuvchi`;
+  const full = !p.licensed && p.user_cap != null && p.users >= p.user_cap;
+  return h("div", { class: "section" }, h("h3", { text: "Tarif" }),
+    h("div", { class: "row static" }, h("div", { class: "ico", text: "💳" }), h("div", { class: "grow" }, h("b", { text: until }), h("small", { text: cap }))),
+    !p.kind_ok ? h("p", { class: "hint", text: "Bu rejim hozirgi tarifda yopiq: bot oddiy rejimda ishlayapti. Ochish uchun main botda «Tarif va to‘lov» bo‘limiga kiring." }) : null,
+    full ? h("p", { class: "hint", text: "Foydalanuvchi limiti to‘ldi: yangi odamlar qabul qilinmayapti. Tarifni oshiring." }) : null,
+    p.watermark ? h("p", { class: "hint", text: "Free va Start tarifda botda «TeleCraft yordamida yaratilgan» yozuvi chiqadi." }) : null);
 }
 function paymentSection(m) {
   const p = m.payment;
@@ -378,7 +392,7 @@ function paymentSection(m) {
 function openModeSwitch() {
   const sheet = openSheet({ title: "Rejimni tanlang", tall: true, body: h("div", { class: "list" }, S.mode.kinds.map((k) =>
     h("button", { class: "row", disabled: k.kind === S.mode.kind, onClick: () => confirmMode(k, sheet) },
-      h("div", { class: "ico", text: k.icon }), h("div", { class: "grow" }, h("b", { text: k.name + (k.kind === S.mode.kind ? " ✓" : "") }), h("small", { text: k.about }))))) });
+      h("div", { class: "ico", text: k.icon }), h("div", { class: "grow" }, h("b", { text: (S.mode.plan && S.mode.plan.enforced && !S.mode.plan.licensed && !S.mode.plan.allowed_kinds.includes(k.kind) ? "🔒 " : "") + k.name + (k.kind === S.mode.kind ? " ✓" : "") }), h("small", { text: k.about }))))) });
 }
 function confirmMode(k, parent) {
   const go = h("button", { class: "btn", onClick: () => guarded(go, async () => {

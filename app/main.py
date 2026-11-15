@@ -22,6 +22,7 @@ from engine.broadcast import resume_pending
 from engine.course_notify import loop as course_notify_loop
 from engine.join import loop as join_loop
 from engine.paid_notify import loop as paid_loop
+from engine.plans_notify import loop as plans_loop
 from engine.quiz import resume_pending as resume_quizzes
 from engine.quiz_group import resume_games as resume_group_games
 from engine.telegram_client import close_all_clients
@@ -69,6 +70,7 @@ course_task = None
 backup_task = None
 join_task = None
 paid_task = None
+plans_task = None
 
 
 async def _resume_broadcasts():
@@ -121,6 +123,8 @@ async def on_startup():
     global join_task, paid_task
     join_task = asyncio.create_task(join_loop())
     paid_task = asyncio.create_task(paid_loop())
+    global plans_task
+    plans_task = asyncio.create_task(plans_loop(lambda: constructor_application.bot if constructor_application else None))
     if settings.BACKUP_ENABLED:
         global backup_task
         backup_task = asyncio.create_task(
@@ -140,6 +144,8 @@ async def on_shutdown():
         join_task.cancel()
     if paid_task:
         paid_task.cancel()
+    if plans_task:
+        plans_task.cancel()
     if constructor_application:
         await constructor_application.stop()
         await constructor_application.shutdown()
