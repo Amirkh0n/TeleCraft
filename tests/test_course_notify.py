@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from engine import course_notify as notify
 from engine.booking_time import utcnow
-from models.course import Enrollment
+from models.course import Enrollment, LessonProgress
 from test_course import cr, make_course, row  # noqa: F401  (fixtures/builders)
 from test_course import cb, datas  # noqa: F401
 from helpers import USER, send
@@ -21,6 +21,12 @@ async def no_sleep(_):
     return None
 
 
+async def finish(cr, course, lessons):
+    for ls in lessons:
+        cr.session.add(LessonProgress(course_id=course.id, lesson_id=ls.id, tg_user_id=USER))
+    await cr.session.commit()
+
+
 async def client(_bot, tg=None):
     return tg
 
@@ -30,6 +36,7 @@ async def test_new_drip_lesson_announced_once(cr):
     en = Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=START)
     cr.session.add(en)
     await cr.session.commit()
+    await finish(cr, c, ls[:1])
 
     async def cf(bot):
         return cr.tg
@@ -44,12 +51,26 @@ async def test_downtime_sends_one_notice_for_latest(cr):
     c, ls = await make_course(cr, n=5, unlock="drip", drip_days=1)
     cr.session.add(Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=START))
     await cr.session.commit()
+    await finish(cr, c, ls[:3])
 
     async def cf(bot):
         return cr.tg
     assert await notify.run_once(cr.session, now=DAY4, client_for=cf, sleep=no_sleep) == 1
     assert "Dars 4" in cr.tg.of("send_message")[-1]["text"]
     assert (await row(cr, Enrollment))[0].notified_count == 4
+
+
+async def test_no_notice_until_the_previous_lesson_is_finished(cr):
+    c, ls = await make_course(cr, n=3, unlock="drip", drip_days=1)
+    cr.session.add(Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, user_name="Ali", enrolled_at=START))
+    await cr.session.commit()
+
+    async def cf(bot):
+        return cr.tg
+    assert await notify.run_once(cr.session, now=DAY4, client_for=cf, sleep=no_sleep) == 0  # day 4, lesson 1 unfinished
+    await finish(cr, c, ls[:1])
+    assert await notify.run_once(cr.session, now=DAY4, client_for=cf, sleep=no_sleep) == 1
+    assert "Dars 2" in cr.tg.of("send_message")[-1]["text"]  # only the lesson that really opened
 
 
 async def test_non_drip_and_unpublished_and_finished_are_skipped(cr):
@@ -68,9 +89,10 @@ async def test_non_drip_and_unpublished_and_finished_are_skipped(cr):
 
 async def test_network_error_retries_blocked_user_does_not(cr):
     from telegram.error import Forbidden
-    c, _ = await make_course(cr, n=2, unlock="drip")
+    c, ls = await make_course(cr, n=2, unlock="drip")
     cr.session.add(Enrollment(bot_id=cr.bot.id, course_id=c.id, tg_user_id=USER, enrolled_at=utcnow() - timedelta(days=2)))
     await cr.session.commit()
+    await finish(cr, c, ls[:1])
 
     async def broken(bot):
         raise RuntimeError("network")
