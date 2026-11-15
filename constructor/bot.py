@@ -20,7 +20,7 @@ from constructor.flows.menus import show_menus, add_menu_click, edit_menu_messag
 from constructor.flows.buttons import show_buttons, add_button_click
 from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
-from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc, join as jnpc, paid as pdc
+from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc, join as jnpc, paid as pdc, plans as plx
 from constructor.flows.backup import backup_now
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click
@@ -31,6 +31,16 @@ def build_constructor_application(token: str):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel_action))
     app.add_handler(CommandHandler("backup", backup_now))
+    app.add_handler(CommandHandler("tarif", plx.plan_home))
+    app.add_handler(CommandHandler("payments", plx.pending_command))
+    app.add_handler(CallbackQueryHandler(plx.plan_home, pattern=r"^plx:home$"))
+    app.add_handler(CallbackQueryHandler(plx.pick_plan, pattern=r"^plx:p:\w+$"))
+    app.add_handler(CallbackQueryHandler(plx.pick_bot, pattern=r"^plx:b$"))
+    app.add_handler(CallbackQueryHandler(plx.pick_bot_months, pattern=r"^plx:bb:\d+$"))
+    app.add_handler(CallbackQueryHandler(plx.start_trial, pattern=r"^plx:trial$"))
+    app.add_handler(CallbackQueryHandler(plx.make_payment, pattern=r"^plx:(pm:\w+|bm:\d+):\d+$"))
+    app.add_handler(CallbackQueryHandler(plx.cancel, pattern=r"^plx:x:\d+$"))
+    app.add_handler(CallbackQueryHandler(plx.decide, pattern=r"^pla:(ok|no):\d+$"))
     # Anchored new-style callbacks go first: the legacy patterns below are unanchored substrings.
     app.add_handler(CallbackQueryHandler(screens.show_settings, pattern=r"^scr:open:\d+$"))
     app.add_handler(CallbackQueryHandler(screens.ask_media, pattern=r"^scr:media:\d+$"))
@@ -51,19 +61,19 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(form_flows.pick_form_for_button, pattern=r"^act:form$"))
     app.add_handler(CallbackQueryHandler(form_flows.use_form, pattern=r"^frm:use:\d+$"))
     app.add_handler(CallbackQueryHandler(cin.cinema_home, pattern=r"^cin:home$"))
-    app.add_handler(CallbackQueryHandler(cin.cinema_toggle, pattern=r"^cin:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(cin.cinema_toggle), pattern=r"^cin:(on|off)$"))
     app.add_handler(CallbackQueryHandler(bkc.booking_home, pattern=r"^bkc:home$"))
-    app.add_handler(CallbackQueryHandler(bkc.booking_toggle, pattern=r"^bkc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(bkc.booking_toggle), pattern=r"^bkc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(qzc.quiz_home, pattern=r"^qzc:home$"))
-    app.add_handler(CallbackQueryHandler(qzc.quiz_toggle, pattern=r"^qzc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(qzc.quiz_toggle), pattern=r"^qzc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(crsc.course_home, pattern=r"^crsc:home$"))
-    app.add_handler(CallbackQueryHandler(crsc.course_toggle, pattern=r"^crsc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(crsc.course_toggle), pattern=r"^crsc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(shpc.shop_home, pattern=r"^shpc:home$"))
-    app.add_handler(CallbackQueryHandler(shpc.shop_toggle, pattern=r"^shpc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(shpc.shop_toggle), pattern=r"^shpc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(jnpc.join_home, pattern=r"^jnpc:home$"))
-    app.add_handler(CallbackQueryHandler(jnpc.join_toggle, pattern=r"^jnpc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(jnpc.join_toggle), pattern=r"^jnpc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(pdc.paid_home, pattern=r"^pdc:home$"))
-    app.add_handler(CallbackQueryHandler(pdc.paid_toggle, pattern=r"^pdc:(on|off)$"))
+    app.add_handler(CallbackQueryHandler(plx.guard(pdc.paid_toggle), pattern=r"^pdc:(on|off)$"))
     app.add_handler(CallbackQueryHandler(cin.channel_click, pattern=r"^cin:ch$"))
     app.add_handler(CallbackQueryHandler(cin.channel_delete, pattern=r"^cin:chdel$"))
     app.add_handler(CallbackQueryHandler(cin.admins_home, pattern=r"^adm:home$"))

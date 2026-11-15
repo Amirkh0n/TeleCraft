@@ -5,6 +5,7 @@ os.environ.setdefault("TELEGRAM_TOKEN", "111111:test_constructor_token_not_real_
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("LOG_FORMAT", "text")
 os.environ.setdefault("ENCRYPTION_KEY", "test-encryption-key")
+os.environ.setdefault("PLANS_ENFORCE", "false")  # plan tests switch it on explicitly
 
 
 import pytest  # noqa: E402

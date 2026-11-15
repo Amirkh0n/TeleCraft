@@ -294,6 +294,13 @@ async def broadcast_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if action == "go":
+            from core import plans
+            try:
+                await plans.check_broadcast(session, bot)
+            except plans.PlanError as exc:
+                from constructor.flows.plans import plain
+                await update.callback_query.answer(plain(str(exc)), show_alert=True)
+                return
             result = await broadcast_engine.start(session, b.id)
             if result == "busy":
                 await update.callback_query.answer("Boshqa broadcast hali yuborilmoqda.", show_alert=True)

@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 from telegram.error import Forbidden
 
+from core import plans
 from core.logger import get_logger
 from engine import booking, cinema, course, forms, join, paid, quiz, shop
 from engine.audience import set_blocked, touch_user
@@ -67,6 +68,41 @@ def _command(text: str) -> str:
     return text.split()[0].split("@")[0] if text else ""
 
 
+MODE_HANDLERS = {"cinema": cinema, "booking": booking, "quiz": quiz, "course": course, "shop": shop, "join": join, "paid": paid}
+
+FULL_TEXT = "Bu bot hozircha yangi foydalanuvchilarni qabul qila olmaydi. Keyinroq urinib ko‘ring."
+
+
+async def _admitted(bot, update, session, tg, limits) -> bool:
+    """Free/Start bots stop taking *new* people at their user cap; people already in keep using the bot."""
+    if not limits.full:
+        return True
+    sender = _sender_id(update)
+    if sender is None or await plans.admits(session, bot, sender, limits):
+        return True
+    chat = (update.get("message") or {}).get("chat") or ((update.get("callback_query") or {}).get("message") or {}).get("chat") or {}
+    if chat.get("id") and chat.get("type") == "private":
+        try:
+            await tg.send_message(chat_id=chat["id"], text=FULL_TEXT)
+        except Exception as exc:
+            logger.info("cap notice not delivered: %s", exc)
+    return False
+
+
+async def _footer(bot, update, tg):
+    """Free and Start bots carry a small TeleCraft line after /start."""
+    message = update.get("message") or {}
+    text = message.get("text") or ""
+    if _command(text) != "/start" or (message.get("chat") or {}).get("type") != "private":
+        return
+    from core.config import settings
+    link = f' @{settings.MAIN_BOT_USERNAME}' if settings.MAIN_BOT_USERNAME else ""
+    try:
+        await tg.send_message(chat_id=message["chat"]["id"], text=f"⚡️ Bu bot TeleCraft yordamida yaratilgan.{link}")
+    except Exception as exc:
+        logger.info("footer not delivered: %s", exc)
+
+
 async def route_update(bot, update, session, *, client=None):
     """Handle one update. Never raises: a failing update must not make Telegram retry it forever."""
     if _already_seen(bot.id, update.get("update_id")):
@@ -81,33 +117,27 @@ async def route_update(bot, update, session, *, client=None):
             # The spinner is stopped in parallel with the handling: no extra round trip before it.
             ack_task = asyncio.ensure_future(_ack(tg, update["callback_query"]))
         async with _user_lock(bot.id, _sender_id(update)):
+            limits = await plans.bot_limits(session, bot)
+            kind = (getattr(bot, "kind", "standard") or "standard") if limits.kind_ok else "standard"
             if update.get("my_chat_member"):
                 await _on_membership(bot, update["my_chat_member"], session)
-                if getattr(bot, "kind", "standard") == "join":
+                if kind == "join":
                     await join.on_membership(bot, update["my_chat_member"], session, tg)
-                elif getattr(bot, "kind", "standard") == "paid":
+                elif kind == "paid":
                     await paid.on_membership(bot, update["my_chat_member"], session, tg)
+            elif not await _admitted(bot, update, session, tg, limits):
+                pass
             elif update.get("chat_join_request"):
-                if getattr(bot, "kind", "standard") == "join":
+                if kind == "join":
                     await join.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "cinema":
-                await cinema.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "booking":
-                await booking.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "quiz":
-                await quiz.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "course":
-                await course.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "shop":
-                await shop.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "join":
-                await join.handle(bot, update, session, tg)
-            elif getattr(bot, "kind", "standard") == "paid":
-                await paid.handle(bot, update, session, tg)
+            elif kind in MODE_HANDLERS:
+                await MODE_HANDLERS[kind].handle(bot, update, session, tg)
             elif update.get("callback_query"):
                 await _on_callback(bot, update["callback_query"], session, tg)
             elif update.get("message"):
                 await _on_message(bot, update["message"], session, tg)
+            if limits.watermark:
+                await _footer(bot, update, tg)
         if ack_task is not None:
             await ack_task
     except Forbidden:

@@ -49,6 +49,9 @@ async def set_kind(session, bot, kind: str) -> None:
     from models.course import KIND_COURSE
     from models.shop import KIND_SHOP
     from models.quiz import KIND_QUIZ
+    from core import plans
+    if kind != KIND_STANDARD:  # raises PlanError when the plan (or this bot's own licence) does not allow the mode
+        await plans.check_kind(session, bot.owner_id, kind, bot.id)
     bot.kind = kind
     welcomes = {KIND_CINEMA: cinema_engine.WELCOME, KIND_BOOKING: booking_engine.WELCOME, KIND_QUIZ: quiz_engine.WELCOME,
                 KIND_COURSE: course_engine.WELCOME, KIND_SHOP: shop_engine.WELCOME,
