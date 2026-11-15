@@ -21,12 +21,28 @@ def test_sequential():
 
 def test_drip_daily_at_hour():
     kw = dict(enrolled_at=START, drip_days=1, drip_hour=9, tz=TZ)
-    d = [False] * 5
+    d = [True] * 5  # a diligent student: everything opened so far is finished
     assert cl.unlocked_count("drip", d, now=START, **kw) == 1
     # day 2 at 09:00 Tashkent = 04:00 UTC
     assert cl.unlocked_count("drip", d, now=datetime(2026, 11, 2, 3, 59, tzinfo=UTC), **kw) == 1
     assert cl.unlocked_count("drip", d, now=datetime(2026, 11, 2, 4, 0, tzinfo=UTC), **kw) == 2
     assert cl.unlocked_count("drip", d, now=datetime(2026, 12, 1, tzinfo=UTC), **kw) == 5
+
+
+def test_drip_waits_for_the_previous_lesson():
+    kw = dict(enrolled_at=START, drip_days=1, drip_hour=9, tz=TZ)
+    day2 = datetime(2026, 11, 2, 4, 0, tzinfo=UTC)
+    late = datetime(2026, 12, 1, tzinfo=UTC)
+    # day 2 has come, but lesson 1 is not finished: lesson 2 stays closed
+    assert cl.unlocked_count("drip", [False] * 5, now=day2, **kw) == 1
+    assert cl.unlocked_count("drip", [False] * 5, now=late, **kw) == 1
+    # finishing lesson 1 opens lesson 2 at once, and no further (the schedule is already due)
+    assert cl.unlocked_count("drip", [True, False, False, False, False], now=late, **kw) == 2
+    assert cl.unlocked_count("drip", [True, True, False, False, False], now=late, **kw) == 3
+    # finished lesson 1 early: lesson 2 still waits for its day
+    assert cl.unlocked_count("drip", [True, False, False], now=START, **kw) == 1
+    # a skipped lesson in the middle blocks everything after it
+    assert cl.unlocked_count("drip", [True, False, True, False], now=late, **kw) == 2
 
 
 def test_drip_every_two_days_and_next_open():
@@ -39,7 +55,7 @@ def test_drip_every_two_days_and_next_open():
 
 def test_naive_datetimes_from_sqlite():
     naive = datetime(2026, 11, 1, 3, 0)
-    assert cl.unlocked_count("drip", [False] * 2, enrolled_at=naive, now=datetime(2026, 11, 2, 5, tzinfo=UTC),
+    assert cl.unlocked_count("drip", [True, False], enrolled_at=naive, now=datetime(2026, 11, 2, 5, tzinfo=UTC),
                              drip_days=1, drip_hour=9, tz=TZ) == 2
 
 

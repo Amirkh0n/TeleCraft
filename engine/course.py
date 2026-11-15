@@ -128,9 +128,10 @@ async def enroll(session, bot, course, user: dict, via: str) -> Enrollment:
 class Ctx:
     """Everything needed to decide what a student may open in one course."""
 
-    def __init__(self, course, lessons, done, enrollment, opened, tz, settings, admin):
+    def __init__(self, course, lessons, done, enrollment, opened, tz, settings, admin, now=None):
         self.course, self.lessons, self.done, self.enrollment = course, lessons, done, enrollment
         self.opened, self.tz, self.settings, self.admin = opened, tz, settings, admin
+        self.now = now or utcnow()
 
     @property
     def total(self):
@@ -150,10 +151,22 @@ class Ctx:
         return self.enrollment is not None and 0 <= i < self.opened
 
     def next_open(self):
+        """When the next locked lesson opens by the schedule; None when nothing is scheduled or the
+        schedule is already due and only the student's own progress is missing (see ``waiting_for_progress``)."""
         if self.enrollment is None:
             return None
-        return logic.next_open_at(self.course.unlock_mode, self.opened, self.total, enrolled_at=self.enrollment.enrolled_at,
-                                  drip_days=self.course.drip_days, drip_hour=self.settings.drip_hour, tz=self.tz)
+        nxt = logic.next_open_at(self.course.unlock_mode, self.opened, self.total, enrolled_at=self.enrollment.enrolled_at,
+                                 drip_days=self.course.drip_days, drip_hour=self.settings.drip_hour, tz=self.tz)
+        return nxt if nxt is not None and nxt > self.now else None
+
+    @property
+    def waiting_for_progress(self) -> bool:
+        """Scheduled course: the next lesson's day has come but the previous lesson is not finished."""
+        if self.enrollment is None or self.course.unlock_mode != UNLOCK_DRIP or self.opened >= self.total:
+            return False
+        nxt = logic.next_open_at(self.course.unlock_mode, self.opened, self.total, enrolled_at=self.enrollment.enrolled_at,
+                                 drip_days=self.course.drip_days, drip_hour=self.settings.drip_hour, tz=self.tz)
+        return nxt is not None and nxt <= self.now
 
 
 async def context(session, bot, course, uid: int, admin: bool = False, now=None) -> Ctx:
@@ -162,12 +175,13 @@ async def context(session, bot, course, uid: int, admin: bool = False, now=None)
     done = await done_ids(session, course.id, uid)
     en = await enrollment_of(session, course.id, uid)
     tz = tz_of(settings.timezone)
+    now = now or utcnow()
     opened = 0
     if en is not None:
         opened = logic.unlocked_count(
-            course.unlock_mode, [ls.id in done for ls in lessons], enrolled_at=en.enrolled_at, now=now or utcnow(),
+            course.unlock_mode, [ls.id in done for ls in lessons], enrolled_at=en.enrolled_at, now=now,
             drip_days=course.drip_days, drip_hour=settings.drip_hour, tz=tz)
-    return Ctx(course, lessons, done, en, opened, tz, settings, admin)
+    return Ctx(course, lessons, done, en, opened, tz, settings, admin, now)
 
 
 async def visible_course(session, bot, course_id: int, uid: int, admin: bool):
@@ -254,7 +268,7 @@ def unlock_note(course) -> str:
         return "🔓 Darslar ketma-ket ochiladi: avvalgisini tugatsangiz keyingisi ochiladi."
     if course.unlock_mode == UNLOCK_DRIP:
         every = "har kuni" if course.drip_days == 1 else f"har {course.drip_days} kunda"
-        return f"📅 Yangi dars {every} ochiladi."
+        return f"📅 Yangi dars {every} ochiladi — lekin avvalgi darsni tugatgan bo‘lsangiz."
     return "🔓 Barcha darslar birdaniga ochiq."
 
 
@@ -322,7 +336,9 @@ async def show_syllabus(tg, callback, chat_id, session, bot, course, page: int, 
         kb.append([Btn(f"{icon} {i + 1}. {ls.title}"[:60], callback_data=f"cr:l:{ls.id}")])
     nxt = ctx.next_open()
     if nxt and ctx.enrollment:
-        lines.append(f"\n⏰ Keyingi dars: {fmt_dt(nxt, ctx.tz)}")
+        lines.append(f"\n⏰ Keyingi dars: {fmt_dt(nxt, ctx.tz)}" + (" (avvalgi darsni tugatgan bo‘lsangiz)" if not ctx.waiting_for_progress else ""))
+    elif ctx.waiting_for_progress:
+        lines.append("\n⏳ Keyingi dars ochilishi uchun avvalgi darsni tugating.")
     nav = []
     if page > 0:
         nav.append(Btn("⬅️", callback_data=f"cr:syl:{course.id}:{page - 1}"))
@@ -423,7 +439,11 @@ async def locked_message(tg, callback, uid, session, bot, course, lesson, ctx: C
         text = "🔒 Bu dars hali yopiq: avvalgi darsni tugatganingizdan keyin ochiladi."
     else:
         nxt = logic.drip_open_at(ctx.enrollment.enrolled_at, ctx.index(lesson.id), course.drip_days, ctx.settings.drip_hour, ctx.tz)
-        text = f"🔒 Bu dars hali yopiq. Ochilish vaqti: <b>{fmt_dt(nxt, ctx.tz)}</b>"
+        if nxt > ctx.now:
+            text = (f"🔒 Bu dars hali yopiq. Ochilish vaqti: <b>{fmt_dt(nxt, ctx.tz)}</b> "
+                    "(avvalgi darsni tugatgan bo‘lsangiz).")
+        else:
+            text = "🔒 Bu dars hali yopiq: avvalgi darsni tugatganingizdan keyin ochiladi."
     await show(tg, callback, uid, text, back)
 
 
@@ -467,6 +487,8 @@ async def go_next(tg, callback, uid, session, bot, course, admin: bool):
         text = "⏳ Hozircha ochiq darslarning hammasini tugatdingiz."
         if nxt:
             text += f"\nKeyingi dars: <b>{fmt_dt(nxt, ctx.tz)}</b>"
+        elif ctx.waiting_for_progress:
+            text = "⏳ Keyingi dars ochilishi uchun avvalgi darsni tugating."
         return await show(tg, callback, uid, text, Markup([[Btn("📖 Dastur", callback_data=f"cr:syl:{course.id}:0")]]))
     await open_lesson(tg, callback, uid, session, bot, target, admin)
 

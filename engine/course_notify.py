@@ -44,7 +44,8 @@ async def run_once(session, *, now=None, client_for=_default_client, sleep=async
         if course.id not in lessons_cache:
             lessons_cache[course.id] = await core.lessons_of(session, course.id)
         lessons = lessons_cache[course.id]
-        opened = logic.unlocked_count(UNLOCK_DRIP, [False] * len(lessons), enrolled_at=en.enrolled_at, now=now,
+        done = await core.done_ids(session, course.id, en.tg_user_id)
+        opened = logic.unlocked_count(UNLOCK_DRIP, [ls.id in done for ls in lessons], enrolled_at=en.enrolled_at, now=now,
                                       drip_days=course.drip_days, drip_hour=st.drip_hour, tz=tz_of(st.timezone))
         if opened <= en.notified_count:
             continue
@@ -52,8 +53,8 @@ async def run_once(session, *, now=None, client_for=_default_client, sleep=async
         nxt = logic.next_open_at(UNLOCK_DRIP, opened, len(lessons), enrolled_at=en.enrolled_at,
                                  drip_days=course.drip_days, drip_hour=st.drip_hour, tz=tz_of(st.timezone))
         text = f"🔔 <b>{core.esc(course.title)}</b>\nYangi dars ochildi: <b>{core.esc(lesson.title)}</b>"
-        if nxt:
-            text += f"\n⏰ Keyingisi: {fmt_dt(nxt, tz_of(st.timezone))}"
+        if nxt and nxt > now:
+            text += f"\n⏰ Keyingisi: {fmt_dt(nxt, tz_of(st.timezone))} (bu darsni tugatgan bo‘lsangiz)"
         try:
             tg = await client_for(bot)
             await tg.send_message(chat_id=en.tg_user_id, text=text, parse_mode="HTML",

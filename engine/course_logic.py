@@ -16,18 +16,20 @@ def drip_open_at(enrolled_at: datetime, index: int, drip_days: int, drip_hour: i
 
 def unlocked_count(mode: str, done: list[bool], *, enrolled_at: datetime, now: datetime,
                    drip_days: int = 1, drip_hour: int = 9, tz=None) -> int:
-    """How many lessons (a prefix of the ordered list) are open. ``done[i]`` = lesson i is completed."""
+    """How many lessons (a prefix of the ordered list) are open. ``done[i]`` = lesson i is completed.
+    Scheduled courses open a lesson on its day only if the student finished the lesson before it."""
     total = len(done)
+    run = 0
+    while run < total and done[run]:
+        run += 1
+    sequential = min(total, run + 1)  # the next lesson opens only after the previous one is completed
     if mode == UNLOCK_SEQ:
-        run = 0
-        while run < total and done[run]:
-            run += 1
-        return min(total, run + 1)
+        return sequential
     if mode == UNLOCK_DRIP:
         count = 0
         while count < total and drip_open_at(enrolled_at, count, drip_days, drip_hour, tz) <= now:
             count += 1
-        return count
+        return min(count, sequential)  # the schedule AND the previous lesson both have to allow it
     return total
 
 

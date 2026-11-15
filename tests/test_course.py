@@ -157,8 +157,30 @@ async def test_drip_locked_then_open(cr):
     en = (await row(cr, Enrollment))[0]
     en.enrolled_at = utcnow() - timedelta(days=1, hours=1)
     await cr.session.commit()
+    await press(cr, f"cr:done:{ls[0].id}")
     await press(cr, f"cr:l:{ls[1].id}")
     assert cr.tg.of("send_video")[-1]["video"] == "vid1"
+
+
+async def test_drip_lesson_stays_closed_until_the_previous_one_is_finished(cr):
+    c, ls = await make_course(cr, n=3, unlock="drip", drip_days=1)
+    (await core.get_settings(cr.session, cr.bot.id)).drip_hour = 0
+    await cr.session.commit()
+    await press(cr, f"cr:join:{c.id}")
+    en = (await row(cr, Enrollment))[0]
+    en.enrolled_at = utcnow() - timedelta(days=5)  # days 2, 3 are long due
+    await cr.session.commit()
+    sent = len(cr.tg.of("send_video"))
+    await press(cr, f"cr:l:{ls[1].id}")
+    assert len(cr.tg.of("send_video")) == sent
+    assert "avvalgi darsni tugatganingizdan" in screen(cr)["text"]
+    await press(cr, f"cr:syl:{c.id}:0")
+    assert "avvalgi darsni tugating" in screen(cr)["text"]
+    await press(cr, f"cr:done:{ls[0].id}")  # finishing lesson 1 opens exactly lesson 2
+    await press(cr, f"cr:l:{ls[1].id}")
+    assert len(cr.tg.of("send_video")) == sent + 1
+    await press(cr, f"cr:l:{ls[2].id}")
+    assert len(cr.tg.of("send_video")) == sent + 1  # lesson 3 needs lesson 2 first
 
 
 async def test_go_continues_from_first_unfinished(cr):
