@@ -42,6 +42,8 @@ async def set_kind(session, bot, kind: str) -> None:
     from engine import course as course_engine
     from engine import shop as shop_engine
     from engine import join as join_engine
+    from engine import paid as paid_engine
+    from models.paid import KIND_PAID
     from models.join import KIND_JOIN
     from models.booking import KIND_BOOKING
     from models.course import KIND_COURSE
@@ -50,7 +52,7 @@ async def set_kind(session, bot, kind: str) -> None:
     bot.kind = kind
     welcomes = {KIND_CINEMA: cinema_engine.WELCOME, KIND_BOOKING: booking_engine.WELCOME, KIND_QUIZ: quiz_engine.WELCOME,
                 KIND_COURSE: course_engine.WELCOME, KIND_SHOP: shop_engine.WELCOME,
-                KIND_JOIN: join_engine.WELCOME}
+                KIND_JOIN: join_engine.WELCOME, KIND_PAID: paid_engine.WELCOME}
     if kind in welcomes:
         if kind == KIND_BOOKING:
             await booking_engine.ensure_setup(session, bot)
@@ -62,6 +64,8 @@ async def set_kind(session, bot, kind: str) -> None:
             await shop_engine.ensure_setup(session, bot)
         elif kind == KIND_JOIN:
             await join_engine.ensure_setup(session, bot)
+        elif kind == KIND_PAID:
+            await paid_engine.ensure_setup(session, bot)
         menu = await cinema_engine.ensure_start_menu(session, bot, welcomes[kind])
         if menu.message_text in welcomes.values():  # still a default text of another mode: swap it
             menu.message_text = welcomes[kind]

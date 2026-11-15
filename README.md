@@ -471,6 +471,22 @@ Konstruktorda botni tanlab «📨 Ariza bot» → «Ariza botga aylantirish».
 Telegram arizachiga faqat ariza ochiq paytda yozishga ruxsat beradi. Xabar yetib bormasa, ariza adminlarga qo‘lda qaror uchun yuboriladi.
 Mavjud botlar uchun `chat_join_request` yangi deploydan keyin webhook yangilanganda yoqiladi.
 
+## Pullik kanal rejimi
+
+Yopiq kanal/guruhga obuna sotadi. Konstruktorda botni tanlab «💎 Pullik kanal» → «Pullik kanal botiga aylantirish».
+
+1. Botni kanalga **administrator** qiling («Foydalanuvchilarni taklif qilish» va «Foydalanuvchilarni cheklash» huquqlari bilan).
+2. Child botda `/admin`: «Sozlamalar»da karta raqamini kiriting, «Tariflar»da tarif yarating (nom, kun, narx, kirish beradigan kanallar).
+3. Mijoz tarifni tanlaydi, kartaga o‘tkazadi va chek rasmini yuboradi; admin ✅/❌ bosadi. Tasdiqlansa bot **bir martalik** (24 soat amal qiladigan) kirish havolasini beradi.
+
+Imkoniyatlar: bir nechta tarif va kanal; promokodlar (foiz yoki summa, necha marta ishlatilishi); bepul sinov (har kishiga bir marta);
+obunani uzaytirish (muddat oxiriga qo‘shiladi); tugashidan 3 va 1 kun oldin eslatma; muddat tugagach kanaldan chiqarish (ban qilinmaydi,
+qayta to‘lasa qaytadi) va «Qayta to‘lash» tugmasi; obunachilar ro‘yxati (faol / tugayotgan / tugagan), qo‘lda muddat qo‘shish, bekor qilish,
+Telegram ID bo‘yicha qo‘lda obuna berish; statistika va tushum.
+
+Muddat sikli (`paid_notify`) har 2 daqiqada ishlaydi; ilovaning bitta nusxasi ishlashi kerak. Bir foydalanuvchi bir nechta tarifga obuna
+bo‘lsa, kanaldan faqat hech bir faol tarif qamramagan kanallar bo‘yicha chiqariladi.
+
 ## Kunlik zaxira nusxa (backup)
 
 Har kuni `BACKUP_HOUR` (odatda 20:00, `BACKUP_TIMEZONE` = Asia/Tashkent) da butun baza `.sql.gz` fayl sifatida
