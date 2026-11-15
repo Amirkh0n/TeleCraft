@@ -142,7 +142,7 @@ def bot_out(bot: Bot) -> dict:
     return {
         "id": bot.id, "name": bot.name, "username": bot.username,
         "link": f"https://t.me/{bot.username}" if bot.username else None,
-        "connected": bool(bot.webhook_set), "active": bool(bot.is_active),
+        "connected": bool(bot.webhook_set), "active": bool(bot.is_active), "kind": bot.kind or "standard",
     }
 
 

@@ -77,7 +77,7 @@ async function api(method, path, body, form) {
 }
 
 /* ------------------------------------------------------------------ state */
-const S = { broadcasts: null, channels: null, bots: [], bot: null, menus: [], forms: [], menuId: null, tab: "screens", stats: null, expired: false, loading: true };
+const S = { mode: null, broadcasts: null, channels: null, bots: [], bot: null, menus: [], forms: [], menuId: null, tab: "screens", stats: null, expired: false, loading: true };
 const ACTIONS = {
   text:  { title: "Xabar yuborish", hint: "Bot shu matn bilan javob beradi", icon: "text" },
   menu:  { title: "Boshqa ekranni ochish", hint: "Mijoz yangi menyuga o‘tadi", icon: "screen" },
@@ -109,10 +109,17 @@ async function loadBots() {
 }
 async function selectBot(bot) {
   const data = await api("GET", `/bots/${bot.id}`);
-  S.bot = data.bot; S.menus = data.menus; S.forms = data.forms; S.stats = null; S.broadcasts = null; S.channels = null;
+  S.bot = data.bot; S.menus = data.menus; S.forms = data.forms; S.stats = null; S.broadcasts = null; S.channels = null; S.mode = null;
+  if (!isStandard() && (S.tab === "screens" || S.tab === "forms")) S.tab = "mode";  // ready-made modes have no screens/forms
+  if (S.tab === "mode") loadMode();
   S.menuId = (S.menus.find((m) => m.is_start) || S.menus[0] || {}).id || null;
   try { localStorage.setItem("tc.bot", String(bot.id)); } catch (_) { /* optional */ }
 }
+const KIND_LABEL = { cinema: "🎬 Kino bot", booking: "📅 Bron bot", quiz: "📝 Test bot", course: "🎓 Kurs bot", shop: "🛒 Do‘kon bot", join: "📨 Ariza bot", paid: "💎 Pullik kanal" };
+const isStandard = (bot = S.bot) => !bot || !bot.kind || bot.kind === "standard";
+const kindTag = (bot) => (isStandard(bot) ? "" : ` · ${KIND_LABEL[bot.kind] || bot.kind}`);
+const money = (n) => `${Number(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ")} so‘m`;
+
 async function reloadBot() {
   const data = await api("GET", `/bots/${S.bot.id}`);
   S.bot = data.bot; S.menus = data.menus; S.forms = data.forms;
@@ -298,7 +305,8 @@ function renderApp() {
       h("button", { class: "btn", onClick: () => (tg ? tg.close() : null) }, "Botga qaytish")));
     return;
   }
-  const page = S.tab === "forms" ? formsPage() : S.tab === "stats" ? statsPage() : S.tab === "send" ? sendPage() : screensPage();
+  if (!isStandard() && (S.tab === "screens" || S.tab === "forms")) S.tab = "mode";
+  const page = S.tab === "mode" ? modePage() : S.tab === "forms" ? formsPage() : S.tab === "stats" ? statsPage() : S.tab === "send" ? sendPage() : screensPage();
   app.replaceChildren(header(), page, tabbar());
 }
 
@@ -310,22 +318,78 @@ function header() {
       h("div", { style: "min-width:0" },
         h("div", { class: "name", text: S.bot.name }),
         h("div", { class: "sub" }, h("span", { class: `dot${S.bot.connected ? "" : " off"}` }),
-          S.bot.connected ? (S.bot.username ? `@${S.bot.username}` : "Ulangan") : "Ulanish kutilmoqda")),
+          (S.bot.connected ? (S.bot.username ? `@${S.bot.username}` : "Ulangan") : "Ulanish kutilmoqda") + kindTag(S.bot))),
       multi ? icon("chev") : null),
     S.bot.link ? h("button", { class: "ghost", "aria-label": "Botni Telegram’da ochish", onClick: () => (tg ? tg.openTelegramLink(S.bot.link) : window.open(S.bot.link, "_blank")) }, icon("out")) : null);
 }
 
 function tabbar() {
-  const tab = (id, label, ic) => h("button", { class: "tab", "aria-current": S.tab === id, onClick: () => { S.tab = id; haptic(); renderApp(); if (id === "stats") loadStats(); if (id === "send") loadBroadcasts(); } }, icon(ic), label);
-  return h("nav", { class: "tabbar", "aria-label": "Bo‘limlar" }, tab("screens", "Ekranlar", "screen"), tab("forms", "Formalar", "form"), tab("send", "Tarqatish", "send"), tab("stats", "Auditoriya", "chart"));
+  const tab = (id, label, ic) => h("button", { class: "tab", "aria-current": S.tab === id, onClick: () => { S.tab = id; haptic(); renderApp(); if (id === "stats") loadStats(); if (id === "send") loadBroadcasts(); if (id === "mode") loadMode(); } }, icon(ic), label);
+  const std = isStandard();
+  return h("nav", { class: `tabbar${std ? " five" : ""}`, "aria-label": "Bo‘limlar" },
+    std ? [tab("screens", "Ekranlar", "screen"), tab("forms", "Formalar", "form")] : tab("mode", "Rejim", "star"),
+    tab("send", "Tarqatish", "send"), tab("stats", "Auditoriya", "chart"), std ? tab("mode", "Rejim", "star") : null);
 }
 
 function openBotPicker() {
   const sheet = openSheet({
     title: "Botni tanlang",
     body: h("div", { class: "list" }, S.bots.map((b) => h("button", { class: "row", onClick: () => guarded(null, async () => { sheet.close(); S.loading = true; renderApp(); await selectBot(b); S.loading = false; renderApp(); }) },
-      h("div", { class: "ico" }, icon("star")), h("div", { class: "grow" }, h("b", { text: b.name }), h("small", { text: b.username ? `@${b.username}` : "Ulanish kutilmoqda" }))))),
+      h("div", { class: "ico" }, icon("star")), h("div", { class: "grow" }, h("b", { text: b.name }), h("small", { text: (b.username ? `@${b.username}` : "Ulanish kutilmoqda") + kindTag(b) }))))),
   });
+}
+
+/* ---- mode tab: what kind of bot this is, its key numbers, payment settings, switching */
+async function loadMode() {
+  if (S.mode || !S.bot) return;
+  try { S.mode = await api("GET", `/bots/${S.bot.id}/mode`); } catch (err) { toast(err.message, true); return; }
+  if (S.tab === "mode") renderApp();
+}
+function modePage() {
+  const m = S.mode;
+  if (!m) return h("div", { class: "page" }, h("div", { class: "splash", style: "min-height:50dvh" }, h("div", { class: "spin" })));
+  const std = m.kind === "standard";
+  return h("div", { class: "page" }, h("h2", { text: "Rejim" }),
+    h("div", { class: "row static" }, h("div", { class: "ico", text: m.icon }), h("div", { class: "grow" }, h("b", { text: m.name }), h("small", { text: m.about }))),
+    !std && m.metrics.length ? h("div", { class: "facts", style: "margin-top:14px" }, m.metrics.map((x) =>
+      h("div", { class: "fact", style: x.money ? "grid-column:1/-1" : null }, h("b", { text: x.money ? money(x.value) : String(x.value) }), h("small", { text: x.label })))) : null,
+    h("div", { class: "section" }, h("h3", { text: std ? "Boshlash" : "Ishga tushirish" }), h("ol", { class: "steps" }, m.steps.map((s) => h("li", { text: s })))),
+    paymentSection(m),
+    h("div", { class: "section" }, h("h3", { text: "Rejimni almashtirish" }),
+      h("p", { class: "hint", text: "Tayyor rejimga o‘tsangiz, ekran va formalaringiz o‘chmaydi: oddiy rejimga qaytganda yana ishlaydi." }),
+      h("button", { class: "btn soft block", onClick: openModeSwitch }, "Rejimni tanlash")));
+}
+function paymentSection(m) {
+  const p = m.payment;
+  if (!p) return null;
+  const num = h("input", { class: "input", inputmode: "numeric", placeholder: "8600 0000 0000 0000", value: p.card_number || "" });
+  const holder = h("input", { class: "input", placeholder: "Karta egasi", value: p.card_holder || "" });
+  const note = h("textarea", { class: "area", rows: 3, placeholder: "Mijozga ko‘rsatiladigan izoh (ixtiyoriy)", value: p.pay_note || "" });
+  let enabled = p.card_enabled !== false;
+  const toggle = "card_enabled" in p ? switchRow("Karta bilan to‘lash yoqilgan", enabled, (v) => { enabled = v; }) : null;
+  const save = h("button", { class: "btn block", onClick: () => guarded(save, async () => {
+    m.payment = await api("PUT", `/bots/${S.bot.id}/payment`, { card_number: num.value, card_holder: holder.value, pay_note: note.value, ...(toggle ? { card_enabled: enabled } : {}) });
+    toast("Saqlandi"); notify("success");
+  }) }, "Saqlash");
+  return h("div", { class: "section" }, h("h3", { text: "To‘lov sozlamalari" }),
+    h("p", { class: "hint", text: "Mijoz shu kartaga o‘tkazib, chek rasmini botga yuboradi; admin tasdiqlaydi." }),
+    field("Karta raqami", num), field("Karta egasi", holder), field("Izoh", note), toggle, save);
+}
+function openModeSwitch() {
+  const sheet = openSheet({ title: "Rejimni tanlang", tall: true, body: h("div", { class: "list" }, S.mode.kinds.map((k) =>
+    h("button", { class: "row", disabled: k.kind === S.mode.kind, onClick: () => confirmMode(k, sheet) },
+      h("div", { class: "ico", text: k.icon }), h("div", { class: "grow" }, h("b", { text: k.name + (k.kind === S.mode.kind ? " ✓" : "") }), h("small", { text: k.about }))))) });
+}
+function confirmMode(k, parent) {
+  const go = h("button", { class: "btn", onClick: () => guarded(go, async () => {
+    const out = await api("PUT", `/bots/${S.bot.id}/mode`, { kind: k.kind });
+    S.bot = out.bot; S.mode = out.mode;
+    S.tab = k.kind === "standard" ? "screens" : "mode";
+    dlg.close(); parent.close(); await reloadBot(); renderApp(); toast(`${k.name} rejimi yoqildi`); notify("success");
+  }) }, "Almashtirish");
+  const dlg = openSheet({ title: `${k.icon} ${k.name}`, body: [h("p", { text: k.kind === "standard"
+    ? "Bot oddiy rejimga qaytadi: ekran va formalaringiz yana ishlaydi."
+    : "Bot shu rejimda ishlaydi. Ekran va formalaringiz o‘chmaydi, lekin rejim almashguncha ishlamaydi. Tayyor rejimdagi ma’lumotlar saqlanadi." })], foot: [go] });
 }
 
 /* ---- screens tab */

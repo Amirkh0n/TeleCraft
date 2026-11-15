@@ -378,6 +378,10 @@ formalar va auditoriya statistikasi shu yerda.
   har bir so‘rov faqat foydalanuvchining o‘z botlari bilan ishlaydi.
 - Manzil: `/app/`, API: `/api/v1/…`. Qurish bosqichi yo‘q: `webapp/static/` dagi oddiy HTML/CSS/JS.
 - Muharrirda to‘rt bo‘lim: Ekranlar, Formalar, Tarqatish (broadcast: ko‘rinishini ko‘rish, o‘zingizga sinov yuborish, jarayonni kuzatish) va Auditoriya (statistika + majburiy obuna kanallari).
+- **Rejim bo‘limi:** bot turi (oddiy, kino, bron, test, kurs, do‘kon, ariza, pullik kanal) sarlavhada ko‘rinadi. Tayyor rejimdagi botda
+  Ekranlar/Formalar o‘rniga «Rejim» bo‘limi chiqadi: rejim tavsifi, ishga tushirish qadamlari, rejimga xos raqamlar (masalan kursda
+  o‘quvchilar va tushum, pullik kanalda faol obunachilar), **to‘lov sozlamalari** (karta raqami, egasi, izoh; kurs/do‘kon/pullik kanal) va
+  rejimni almashtirish. Rejim almashganda ekran va formalar o‘chmaydi. API: `GET/PUT /api/v1/bots/{id}/mode`, `PUT /api/v1/bots/{id}/payment`.
 - Tugmalarni bosib turib sudrab tartiblash mumkin; saqlanmagan o‘zgarishlar yopishdan oldin ogohlantiriladi.
 
 ## Kino bot rejimi
