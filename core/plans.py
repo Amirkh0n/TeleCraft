@@ -230,8 +230,9 @@ def _check_months(months: int) -> None:
         raise PlanError("Muddat noto‘g‘ri.")
 
 
-async def create_payment(session, user: User, *, plan: str | None = None, bot_id: int | None = None, months: int = 1) -> PlanPayment:
-    """A draft payment for a plan or for one bot's current mode; older drafts of this person are dropped."""
+async def create_payment(session, user: User, *, plan: str | None = None, bot_id: int | None = None, months: int = 1,
+                         kind: str | None = None) -> PlanPayment:
+    """A draft payment for a plan or for one bot (its current mode, or ``kind`` to switch it on approval)."""
     _check_months(months)
     if plan is not None:
         if plan not in PAID_PLANS:
@@ -241,7 +242,10 @@ async def create_payment(session, user: User, *, plan: str | None = None, bot_id
         bot = (await session.execute(select(Bot).where(Bot.id == bot_id, Bot.owner_id == user.id))).scalar_one_or_none()
         if bot is None:
             raise PlanError("Bot topilmadi.")
-        target, kind = TARGET_BOT, bot.kind or "standard"
+        kind = kind or bot.kind or "standard"
+        if kind not in KIND_PRICES:
+            raise PlanError("Bunday rejim yo‘q.")
+        target = TARGET_BOT
         amount = price_for(KIND_PRICES[kind], months)
     await session.execute(update(PlanPayment).where(PlanPayment.user_id == user.id, PlanPayment.status == PAY_DRAFT)
                           .values(status=PAY_CANCELLED).execution_options(synchronize_session=False))
@@ -318,6 +322,10 @@ async def _apply(session, pay: PlanPayment, now: datetime) -> None:
         lic.expires_at = (as_utc(lic.expires_at) if live else now) + timedelta(days=days)
         lic.kind = pay.kind
     await session.flush()
+    bot = await session.get(Bot, pay.bot_id)
+    if bot is not None and (bot.kind or "standard") != pay.kind:  # paid for another mode: switch the bot to it
+        from constructor.flows.cinema import set_kind
+        await set_kind(session, bot, pay.kind)
     invalidate(pay.bot_id)
 
 

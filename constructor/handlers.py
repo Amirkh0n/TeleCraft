@@ -40,14 +40,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_user = update.effective_user
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
     builder_session = await restore_builder_session(user.id, context)
+    from constructor.flows import home
+    if context.args and await home.deep_link(update, context, context.args[0]):
+        return
     if builder_session.pending_state:
         await show_resume_prompt(update, context)
     else:
-        await resume_or_show_bots(update, context)
+        await home.show_home(update, context)
     logger.info("Constructor opened by user_id=%s", tg_user.id)
 
 
 async def add_bot_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await begin_create(update, context)
+
+
+async def begin_create(update: Update, context: ContextTypes.DEFAULT_TYPE, kind: str | None = None):
+    """Ask for the token. With ``kind`` (gallery) the new bot is switched to that mode once it is created."""
     from core import plans
     from constructor.flows.plans import deny
     tg_user = update.effective_user
@@ -55,6 +63,8 @@ async def add_bot_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         async with AsyncSessionLocal() as session:
             await plans.check_new_bot(session, user.id)
+            if kind:
+                await plans.check_kind(session, user.id, kind)
     except plans.PlanError as exc:
         await deny(update, str(exc))
         return
@@ -62,10 +72,12 @@ async def add_bot_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user.id,
         context,
         pending_state=WAITING_FOR_TOKEN,
-        draft={"flow": "create_bot"},
+        draft={"flow": "create_bot", **({"kind": kind} if kind else {})},
     )
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(
+    if update.callback_query:
+        await update.callback_query.answer()
+    target = update.callback_query.message if update.callback_query else update.message
+    await target.reply_text(
         "🤖 <b>1/3 — Bot tokeni</b>\n\n"
         f"{BOTFATHER}’da <code>/newbot</code> yuboring va u bergan tokenni shu chatga jo‘nating.\n\n"
         "Token faqat botni ulash uchun ishlatiladi.",
@@ -207,6 +219,13 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         start_menu_id = start_menu.id
 
     webhook_ok = await set_webhook(token, build_webhook_url(token))
+    kind = (context.user_data.get("draft") or {}).get("kind")
+    if kind:
+        await save_builder_session(user.id, context, current_bot_id=bot_id, current_menu_id=start_menu_id,
+                                   pending_state="", draft={})
+        from constructor.flows import home
+        if await home.finish_create(update, context, bot_id, kind):
+            return
     await save_builder_session(
         user.id,
         context,
@@ -301,7 +320,8 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "3. Bosh xabar, menu va tugmalarni sozlang.\n"
         "4. Child botga <code>/start</code> yuborib sinang.",
         [[InlineKeyboardButton("🤖 Botlarim", callback_data="back_to_bots")],
-         [InlineKeyboardButton("➕ Bot yaratish", callback_data="add_bot")]],
+         [InlineKeyboardButton("➕ Bot yaratish", callback_data="add_bot"), InlineKeyboardButton("🧩 Tayyor botlar", callback_data="gal:home")],
+         [InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")]],
     )
 
 

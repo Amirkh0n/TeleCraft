@@ -88,7 +88,7 @@ async def plan_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if acc is None or not acc.trial_used:
         keyboard.append([Btn(f"🎁 {plans.TRIAL_DAYS} kun bepul Pro", callback_data="plx:trial")])
     keyboard.append([Btn("🤖 Bitta botni ochish (alohida to‘lov)", callback_data="plx:b")])
-    keyboard.append([Btn("⬅️ Botlarim", callback_data="back_to_bots")])
+    keyboard.append([Btn("🏠 Bosh menyu", callback_data="home")])
     await show_screen(update, "\n".join(lines), keyboard, edit=bool(update.callback_query))
 
 
@@ -138,6 +138,20 @@ async def pick_bot_months(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_screen(update, text, _months_keyboard(f"plx:bm:{bot.id}", plans.KIND_PRICES[kind], "plx:b"))
 
 
+async def pick_bot_kind_months(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """``plx:bk:<bot id>:<mode>``: pay for one bot in a chosen mode (it is switched to it once approved)."""
+    tg = update.effective_user
+    user = await ensure_constructor_user(tg.id, tg.full_name)
+    _, _, raw_bot, kind = update.callback_query.data.split(":")
+    async with AsyncSessionLocal() as session:
+        bot = (await session.execute(select(Bot).where(Bot.id == int(raw_bot), Bot.owner_id == user.id))).scalar_one_or_none()
+    if bot is None or kind not in plans.KIND_PRICES:
+        return await pick_bot(update, context)
+    text = (f"🤖 <b>{html.escape(bot.name)}</b> → {plans.KIND_TITLES[kind]}\n\n"
+            "To‘lov tasdiqlangach bot shu rejimga o‘tadi. Muddatni tanlang:")
+    await show_screen(update, text, _months_keyboard(f"plx:bn:{bot.id}:{kind}", plans.KIND_PRICES[kind], HOME))
+
+
 async def start_trial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg = update.effective_user
     user = await ensure_constructor_user(tg.id, tg.full_name)
@@ -154,7 +168,9 @@ async def start_trial(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def make_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """``plx:pm:<plan>:<months>`` or ``plx:bm:<bot id>:<months>``: show the card and wait for the receipt."""
-    _, kind, target, months = update.callback_query.data.split(":")
+    parts = update.callback_query.data.split(":")
+    kind, target, months = parts[1], parts[2], parts[-1]
+    mode = parts[3] if kind == "bn" else None
     tg = update.effective_user
     user = await ensure_constructor_user(tg.id, tg.full_name)
     try:
@@ -162,7 +178,7 @@ async def make_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if kind == "pm":
                 pay = await plans.create_payment(session, user, plan=target, months=int(months))
             else:
-                pay = await plans.create_payment(session, user, bot_id=int(target), months=int(months))
+                pay = await plans.create_payment(session, user, bot_id=int(target), months=int(months), kind=mode)
     except (PlanError, ValueError, KeyError) as exc:
         return await deny(update, str(exc) if isinstance(exc, PlanError) else "So‘rov noto‘g‘ri.")
     await save_builder_session(user.id, context, pending_state=states.WAITING_FOR_PLAN_RECEIPT,

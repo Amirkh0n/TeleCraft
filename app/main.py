@@ -112,6 +112,13 @@ async def on_startup():
             )
         except Exception:
             logger.warning("Could not set the editor menu button", exc_info=True)
+    try:
+        from telegram import BotCommand
+        await constructor_application.bot.set_my_commands([
+            BotCommand("start", "Bosh menyu"), BotCommand("menu", "Bosh menyu"), BotCommand("tarif", "Tarif va to‘lov"),
+            BotCommand("cancel", "Joriy amalni bekor qilish")])
+    except Exception:
+        logger.warning("Could not set the bot commands", exc_info=True)
     if settings.WEBHOOK_REFRESH_ON_START:
         # Background task: must not delay startup or crash it if Telegram is slow.
         asyncio.create_task(refresh_webhooks())
