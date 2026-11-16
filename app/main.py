@@ -11,6 +11,7 @@ from core.backup import backup_loop
 from core.database import AsyncSessionLocal, db_config, engine, init_models
 from webhook.handler import router as webhook_router
 from webapp.api import router as webapp_router
+from webapp.api_admin import router as webapp_admin_router
 from webapp.api_audience import router as webapp_audience_router
 from webapp.api_modes import router as webapp_modes_router
 from core.logger import logger
@@ -345,4 +346,5 @@ app.include_router(webhook_router)
 app.include_router(webapp_router)
 app.include_router(webapp_audience_router)
 app.include_router(webapp_modes_router)
+app.include_router(webapp_admin_router)
 app.mount("/app", StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "webapp", "static"), html=True), name="miniapp")

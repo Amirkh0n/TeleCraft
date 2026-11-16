@@ -532,3 +532,16 @@ Asosiy botda **💳 Tarif va to‘lov** (yoki `/tarif`). To‘lov karta + chek r
 - Migration `0013`: botlari bor mavjud egalarga bir martalik **30 kunlik Pro** beriladi (hech narsa to‘satdan to‘xtamasligi uchun).
 - Mini App «Rejim» bo‘limida tarif kartasi, foydalanuvchi soni va yopiq rejimlar (🔒) ko‘rinadi.
 - Zaxira: tarif jadvalidagi «zaxira nusxa» egalar uchun alohida funksiya emas, hozircha faqat platforma adminlariga kunlik backup bor.
+
+## Admin Mini App
+
+`ADMIN_IDS` dagi adminlar Mini App'da (muharrir sarlavhasidagi 🛡 tugma; boti yo‘q admin to‘g‘ridan-to‘g‘ri) quyidagilarni ko‘radi.
+API `/api/v1/admin/*` har so‘rovda adminligini tekshiradi (boshqalarga 403).
+
+- **Bosh**: tushum, mijozlar, botlar, tariflar taqsimoti, kutilayotgan to‘lovlar, 7 kunda tugaydiganlar, 6 oylik tushum, oylik CSV.
+- **To‘lovlar**: chek rasmi, ✅/❌ (sabab bilan; mijozga xabar boradi), tarix filtrlari.
+- **Mijozlar**: ism / Telegram ID / @bot bo‘yicha qidiruv, kartochka (botlari, to‘lovlari), qo‘lda tarif berish/uzaytirish/olib tashlash, bepul sinovni qayta ochish, xabar yuborish.
+- **Botlar**: barcha botlar, to‘xtatish / qayta yoqish (to‘xtatilgan bot javob bermaydi, ma’lumot saqlanadi).
+- **Tizim**: baza versiyasi, zaxira nusxani hozir olish, tarif bo‘yicha platforma xabari, admin jurnali (kim, nima, kimga).
+- Migration `0014` (`admin_log`, faqat qo‘shimcha jadval). Narx va limitlarni panelda tahrirlash hozircha yo‘q: ular `core/plans.py` da.
+
