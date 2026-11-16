@@ -205,3 +205,17 @@ async def test_switching_to_a_locked_mode_answers_402(mc, monkeypatch):
     assert response.status_code == 402 and "Pro" in response.json()["detail"] and "<b>" not in response.json()["detail"]
     ok = await mc.put(f"/api/v1/bots/{mc.env.bot.id}/mode", json={"kind": "cinema"}, headers=mc.hdr)
     assert ok.status_code == 200
+
+
+def test_miniapp_assets_are_versioned_and_never_stale():
+    from fastapi.testclient import TestClient
+    from app.main import app as main_app
+
+    client = TestClient(main_app)
+    page = client.get("/app/")
+    assert page.status_code == 200 and "no-cache" in page.headers["cache-control"]
+    assert "__V__" not in page.text and "app.js?v=" in page.text and "styles.css?v=" in page.text
+    script = client.get("/app/app.js")
+    assert script.status_code == 200 and "admin.js?v=" in script.text and "__V__" not in script.text
+    assert "no-cache" in client.get("/app/admin.js").headers["cache-control"]
+    assert "no-cache" in client.get("/app/styles.css").headers["cache-control"]

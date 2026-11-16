@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, Response, JSONResponse
@@ -354,4 +354,39 @@ app.include_router(webapp_router)
 app.include_router(webapp_audience_router)
 app.include_router(webapp_modes_router)
 app.include_router(webapp_admin_router)
-app.mount("/app", StaticFiles(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "webapp", "static"), html=True), name="miniapp")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "webapp", "static")
+
+
+def _static_version() -> str:
+    """Changes whenever any Mini App file changes: it is put into the asset URLs."""
+    stamps = [os.path.getmtime(os.path.join(STATIC_DIR, name)) for name in os.listdir(STATIC_DIR)]
+    return str(int(max(stamps)))
+
+
+def _versioned(name: str, media: str):
+    with open(os.path.join(STATIC_DIR, name), encoding="utf-8") as fh:
+        body = fh.read().replace("__V__", _static_version())
+    return Response(body, media_type=media, headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/app/", include_in_schema=False)
+@app.get("/app/index.html", include_in_schema=False)
+async def miniapp_index():
+    return _versioned("index.html", "text/html")
+
+
+@app.get("/app/app.js", include_in_schema=False)
+async def miniapp_js():
+    return _versioned("app.js", "text/javascript")
+
+
+class NoCacheStatic(StaticFiles):
+    """Mini App files are revalidated on every open: Telegram's webview otherwise keeps showing an old build."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/app", NoCacheStatic(directory=STATIC_DIR, html=True), name="miniapp")
