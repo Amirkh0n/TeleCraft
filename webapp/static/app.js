@@ -1,5 +1,5 @@
 // TeleCraft muharriri: a Telegram Mini App for building a bot by tapping what its users will see.
-import { mountAdmin } from "./admin.js";
+import { mountAdmin } from "./admin.js?v=__V__";
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor && tg.setHeaderColor("bg_color"); } catch (_) { /* older clients */ } }
 const initData = (tg && tg.initData) || "";
