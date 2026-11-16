@@ -1,4 +1,5 @@
 // TeleCraft muharriri: a Telegram Mini App for building a bot by tapping what its users will see.
+import { mountAdmin } from "./admin.js";
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor && tg.setHeaderColor("bg_color"); } catch (_) { /* older clients */ } }
 const initData = (tg && tg.initData) || "";
@@ -294,7 +295,10 @@ function starMark() {
   return svg;
 }
 
+let adminKit;
+const adminApi = () => (adminKit ||= mountAdmin({ h, api, toast, openSheet, field, segmented, guarded, money, icon, S, haptic, starMark, KIND_LABEL, renderApp }));
 function renderApp() {
+  if (S.admin && !S.expired) { app.replaceChildren(...adminApi().adminPage()); return; }
   if (S.expired) {
     app.replaceChildren(splash("Sessiya tugadi", "Muharrirni yopib, konstruktor botdan qayta oching.", h("button", { class: "btn", onClick: () => (tg ? tg.close() : location.reload()) }, "Yopish")));
     return;
@@ -302,7 +306,8 @@ function renderApp() {
   if (S.loading) { app.replaceChildren(h("div", { class: "splash" }, h("div", { class: "spin" }))); return; }
   if (!S.bot) {
     app.replaceChildren(splash("Hali botingiz yo‘q", "Konstruktor botda tokenni yuboring — bot shu yerda paydo bo‘ladi va uni tahrirlay olasiz.",
-      h("button", { class: "btn", onClick: () => (tg ? tg.close() : null) }, "Botga qaytish")));
+      h("button", { class: "btn", onClick: () => (tg ? tg.close() : null) }, "Botga qaytish"),
+      S.isAdmin ? h("button", { class: "btn ghost", style: "margin-top:8px", onClick: () => { S.admin = true; adminApi().adminLoad(); renderApp(); } }, "🛡 Admin") : null));
     return;
   }
   if (!isStandard() && (S.tab === "screens" || S.tab === "forms")) S.tab = "mode";
@@ -320,6 +325,7 @@ function header() {
         h("div", { class: "sub" }, h("span", { class: `dot${S.bot.connected ? "" : " off"}` }),
           (S.bot.connected ? (S.bot.username ? `@${S.bot.username}` : "Ulangan") : "Ulanish kutilmoqda") + kindTag(S.bot))),
       multi ? icon("chev") : null),
+    S.isAdmin ? h("button", { class: "ghost", "aria-label": "Admin sahifalari", onClick: () => { S.admin = true; adminApi().adminLoad(); renderApp(); } }, "🛡") : null,
     S.bot.link ? h("button", { class: "ghost", "aria-label": "Botni Telegram’da ochish", onClick: () => (tg ? tg.openTelegramLink(S.bot.link) : window.open(S.bot.link, "_blank")) }, icon("out")) : null);
 }
 
@@ -917,6 +923,8 @@ function openBroadcastStatus(item) {
   }
   renderApp();
   try { await loadBots(); } catch (err) { if (!S.expired) toast(err.message, true); }
+  try { S.isAdmin = !!(await api("GET", "/admin/me")).admin; } catch (_) { S.isAdmin = false; }
+  if (S.isAdmin && !S.bots.length) { S.admin = true; adminApi().adminLoad(); }
   S.loading = false;
   renderApp();
 })();
