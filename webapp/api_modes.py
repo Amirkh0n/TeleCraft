@@ -192,3 +192,37 @@ async def put_payment(bot_id: int, body: PaymentIn, user: User = Depends(current
         row.card_enabled = body.card_enabled
     await session.commit()
     return await payment_settings(session, bot)
+
+
+_main_username: list[str] = []
+
+
+async def _main_bot_username() -> str:
+    if settings_main := plans.settings.MAIN_BOT_USERNAME.strip().lstrip("@"):
+        return settings_main
+    if not _main_username:
+        try:
+            from engine.telegram_client import get_client
+            _main_username.append((await (await get_client(plans.settings.TELEGRAM_TOKEN)).get_me()).username or "")
+        except Exception:
+            return ""
+    return _main_username[0]
+
+
+@router.get("/home")
+async def home(user=Depends(current_user), session: AsyncSession = Depends(get_session)):
+    """The Mini App start page: the owner's plan and the gallery of ready-made bots."""
+    from constructor.flows.home import GALLERY_ORDER
+    now = utcnow()
+    plan = await plans.owner_plan(session, user.id, now)
+    acc = await plans.get_account(session, user.id)
+    code, status = plans.state_of(acc, now)
+    enforced = bool(plans.settings.PLANS_ENFORCE)
+    gallery = []
+    for kind in GALLERY_ORDER:
+        icon, name, about, steps = MODES[kind]
+        gallery.append({"kind": kind, "icon": icon, "name": name, "about": about, "steps": steps, "price": plans.KIND_PRICES[kind],
+                        "min_plan": plans.PLANS[plans.KIND_MIN_PLAN[kind]].title, "locked": enforced and kind not in plan.kinds})
+    return {"plan": plan.title, "status": status, "expires_at": acc.expires_at.isoformat() if acc and status != "free" else None,
+            "enforced": enforced, "bots": await plans.bot_count(session, user.id), "max_bots": plan.max_bots,
+            "gallery": gallery, "main_bot": await _main_bot_username()}

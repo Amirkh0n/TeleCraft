@@ -78,7 +78,7 @@ async function api(method, path, body, form) {
 }
 
 /* ------------------------------------------------------------------ state */
-const S = { mode: null, broadcasts: null, channels: null, bots: [], bot: null, menus: [], forms: [], menuId: null, tab: "screens", stats: null, expired: false, loading: true };
+const S = { view: "home", home: null, mode: null, broadcasts: null, channels: null, bots: [], bot: null, menus: [], forms: [], menuId: null, tab: "screens", stats: null, expired: false, loading: true };
 const ACTIONS = {
   text:  { title: "Xabar yuborish", hint: "Bot shu matn bilan javob beradi", icon: "text" },
   menu:  { title: "Boshqa ekranni ochish", hint: "Mijoz yangi menyuga o‘tadi", icon: "screen" },
@@ -304,6 +304,7 @@ function renderApp() {
     return;
   }
   if (S.loading) { app.replaceChildren(h("div", { class: "splash" }, h("div", { class: "spin" }))); return; }
+  if (S.view === "home" || !S.bot) { app.replaceChildren(homeHeader(), homePage()); return; }
   if (!S.bot) {
     app.replaceChildren(splash("Hali botingiz yo‘q", "Konstruktor botda tokenni yuboring — bot shu yerda paydo bo‘ladi va uni tahrirlay olasiz.",
       h("button", { class: "btn", onClick: () => (tg ? tg.close() : null) }, "Botga qaytish"),
@@ -318,14 +319,14 @@ function renderApp() {
 function header() {
   const multi = S.bots.length > 1;
   return h("div", { class: "top" },
-    h("div", { class: "mark" }, starMark()),
+    h("button", { class: "mark", "aria-label": "Bosh sahifa", onClick: () => { S.view = "home"; haptic(); renderApp(); } }, starMark()),
     h("button", { class: "botpick", disabled: !multi, "aria-label": "Botni almashtirish", onClick: openBotPicker },
       h("div", { style: "min-width:0" },
         h("div", { class: "name", text: S.bot.name }),
         h("div", { class: "sub" }, h("span", { class: `dot${S.bot.connected ? "" : " off"}` }),
           (S.bot.connected ? (S.bot.username ? `@${S.bot.username}` : "Ulangan") : "Ulanish kutilmoqda") + kindTag(S.bot))),
       multi ? icon("chev") : null),
-    S.isAdmin ? h("button", { class: "ghost", "aria-label": "Admin sahifalari", onClick: () => { S.admin = true; adminApi().adminLoad(); renderApp(); } }, "🛡") : null,
+    S.isAdmin ? h("button", { class: "ghost", "aria-label": "Admin sahifalari", onClick: openAdmin }, "🛡") : null,
     S.bot.link ? h("button", { class: "ghost", "aria-label": "Botni Telegram’da ochish", onClick: () => (tg ? tg.openTelegramLink(S.bot.link) : window.open(S.bot.link, "_blank")) }, icon("out")) : null);
 }
 
@@ -914,6 +915,63 @@ function openBroadcastStatus(item) {
   }
 }
 
+
+/* ------------------------------------------------------------------ home page and gallery of ready-made bots */
+const openAdmin = () => { S.admin = true; adminApi().adminLoad(); renderApp(); };
+const openBotEditor = (b) => guarded(null, async () => { S.loading = true; renderApp(); await selectBot(b); S.view = "editor"; S.loading = false; renderApp(); });
+const mainBotLink = (payload) => {
+  const name = S.home && S.home.main_bot;
+  if (!name) { toast("Asosiy botga qaytib, «Yangi bot» ni bosing.", true); return; }
+  const url = `https://t.me/${name}${payload ? `?start=${payload}` : ""}`;
+  if (tg) { tg.openTelegramLink(url); tg.close(); } else window.open(url, "_blank");
+};
+
+function homeHeader() {
+  const p = S.home;
+  const sub = p ? (p.enforced ? `${p.plan}${p.expires_at ? ` · ${new Date(p.expires_at).toLocaleDateString("ru-RU", { timeZone: "Asia/Tashkent" })} gacha` : ""}` : "Cheklovsiz") : "";
+  return h("div", { class: "top" }, h("div", { class: "mark" }, starMark()),
+    h("div", { style: "min-width:0;flex:1" }, h("div", { class: "name", text: "TeleCraft" }), h("div", { class: "sub", text: sub })),
+    S.isAdmin ? h("button", { class: "ghost", "aria-label": "Admin sahifalari", onClick: openAdmin }, "🛡") : null);
+}
+
+function homePage() {
+  const p = S.home;
+  const limit = p && p.max_bots != null ? ` / ${p.max_bots}` : "";
+  return h("div", { class: "page" },
+    h("h2", { text: "Bosh sahifa" }),
+    h("div", { class: "section" }, h("h3", { text: `Botlarim${S.bots.length ? ` (${S.bots.length}${limit})` : ""}` }),
+      S.bots.length ? h("div", { class: "list" }, S.bots.map((b) => h("button", { class: "row", onClick: () => openBotEditor(b) },
+        h("div", { class: "ico", text: (MODE_ICONS[b.kind] || "💬") }),
+        h("div", { class: "grow" }, h("b", { text: b.name }), h("small", { text: (b.username ? `@${b.username}` : "Ulanish kutilmoqda") + kindTag(b) })), icon("chev"))))
+        : h("p", { class: "hint", text: "Hali botingiz yo‘q. Quyidagi tayyor botlardan birini tanlang yoki o‘zingiz quring." }),
+      h("button", { class: "btn", style: "margin-top:10px", onClick: () => mainBotLink("new") }, "➕ Yangi bot")),
+    p ? h("div", { class: "section" }, h("h3", { text: "Tayyor botlar" }),
+      h("p", { class: "hint", text: "Rejimni tanlang: bot kerakli funksiyalar bilan shu zahoti tayyor bo‘ladi." }),
+      h("div", { class: "facts" }, p.gallery.map((g) => h("button", { class: "fact", style: "text-align:left;border:0", onClick: () => openGallery(g) },
+        h("b", { text: `${g.locked ? "🔒 " : ""}${g.icon}` }), h("small", { style: "display:block;color:var(--ink)", text: g.name }), h("small", { style: "display:block", text: `${money(g.price)}/oy` }))))) : null,
+    p && p.enforced ? h("p", { class: "hint", text: "Tarif va to‘lov: asosiy botdagi «Tarif va to‘lov» bo‘limida." }) : null);
+}
+const MODE_ICONS = { cinema: "🎬", booking: "📅", quiz: "📝", course: "🎓", shop: "🛒", join: "📨", paid: "💎" };
+
+function openGallery(g) {
+  const bots = S.bots;
+  const sheet = openSheet({ title: `${g.icon} ${g.name}`, body: [
+    h("p", { text: g.about }),
+    h("div", { class: "section" }, h("h3", { text: "Boshlash" }), h("ol", { class: "steps" }, g.steps.map((x) => h("li", { text: x })))),
+    h("p", { class: "hint", text: `Alohida: ${money(g.price)}/oy · tarif: ${g.min_plan} dan.` }),
+    g.locked ? h("p", { class: "hint", text: "🔒 Hozirgi tarifingizda yopiq: asosiy botdagi «Tarif va to‘lov» bo‘limida tarifni oshiring yoki bitta botni alohida oching." }) : null],
+    foot: h("div", { style: "display:grid;gap:8px;width:100%" },
+      g.locked ? null : h("button", { class: "btn", onClick: () => mainBotLink(`new_${g.kind}`) }, "➕ Yangi bot sifatida yaratish"),
+      bots.length && !g.locked ? h("button", { class: "btn ghost", onClick: () => { sheet.close(); pickBotForKind(g); } }, "🔁 Mavjud botimda yoqish") : null) });
+}
+function pickBotForKind(g) {
+  const sheet = openSheet({ title: `${g.name}: qaysi botda?`, body: h("div", { class: "list" }, S.bots.map((b) => h("button", { class: "row", onClick: () => guarded(null, async () => {
+    await api("PUT", `/bots/${b.id}/mode`, { kind: g.kind });
+    sheet.close(); toast("Rejim yoqildi");
+    await loadBots(); S.tab = "mode"; const fresh = S.bots.find((x) => x.id === b.id) || b; await selectBot(fresh); S.view = "editor"; renderApp();
+  }) }, h("div", { class: "ico", text: MODE_ICONS[b.kind] || "💬" }), h("div", { class: "grow" }, h("b", { text: b.name }), h("small", { text: (b.username ? `@${b.username}` : "") + kindTag(b) }))))) });
+}
+
 /* ------------------------------------------------------------------ boot */
 (async function boot() {
   if (!initData) {
@@ -923,8 +981,8 @@ function openBroadcastStatus(item) {
   }
   renderApp();
   try { await loadBots(); } catch (err) { if (!S.expired) toast(err.message, true); }
+  try { S.home = await api("GET", "/home"); } catch (_) { S.home = null; }
   try { S.isAdmin = !!(await api("GET", "/admin/me")).admin; } catch (_) { S.isAdmin = false; }
-  if (S.isAdmin && !S.bots.length) { S.admin = true; adminApi().adminLoad(); }
   S.loading = false;
   renderApp();
 })();

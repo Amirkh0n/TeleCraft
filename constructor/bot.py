@@ -20,7 +20,7 @@ from constructor.flows.menus import show_menus, add_menu_click, edit_menu_messag
 from constructor.flows.buttons import show_buttons, add_button_click
 from constructor.flows.deletion import delete_menu_confirm, handle_delete_menu, delete_button_confirm, handle_delete_button
 from constructor.messages import messages
-from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc, join as jnpc, paid as pdc, plans as plx
+from constructor.flows import screens, forms as form_flows, audience as aud, cinema as cin, booking as bkc, quiz as qzc, course as crsc, shop as shpc, join as jnpc, paid as pdc, plans as plx, home as hm
 from constructor.flows.backup import backup_now
 from constructor.flows.navigation import handle_back
 from constructor.flows.actions import choose_action, action_text_click, action_menu_click, select_menu_for_action, action_link_click, action_admin_click
@@ -31,14 +31,24 @@ def build_constructor_application(token: str):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", cancel_action))
     app.add_handler(CommandHandler("backup", backup_now))
+    app.add_handler(CommandHandler("menu", hm.show_home))
     app.add_handler(CommandHandler("tarif", plx.plan_home))
+    app.add_handler(CallbackQueryHandler(hm.show_home, pattern=r"^home$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_home, pattern=r"^gal:home$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_kind, pattern=r"^gal:k:\w+$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_new, pattern=r"^gal:new:\w+$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_use_pick, pattern=r"^gal:use:\w+$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_pay_pick, pattern=r"^gal:pay:\w+$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_set, pattern=r"^gal:set:\w+:\d+$"))
+    app.add_handler(CallbackQueryHandler(hm.gallery_pay_for, pattern=r"^gal:payfor:\w+:\d+$"))
     app.add_handler(CommandHandler("payments", plx.pending_command))
     app.add_handler(CallbackQueryHandler(plx.plan_home, pattern=r"^plx:home$"))
     app.add_handler(CallbackQueryHandler(plx.pick_plan, pattern=r"^plx:p:\w+$"))
     app.add_handler(CallbackQueryHandler(plx.pick_bot, pattern=r"^plx:b$"))
     app.add_handler(CallbackQueryHandler(plx.pick_bot_months, pattern=r"^plx:bb:\d+$"))
     app.add_handler(CallbackQueryHandler(plx.start_trial, pattern=r"^plx:trial$"))
-    app.add_handler(CallbackQueryHandler(plx.make_payment, pattern=r"^plx:(pm:\w+|bm:\d+):\d+$"))
+    app.add_handler(CallbackQueryHandler(plx.make_payment, pattern=r"^plx:(pm:\w+|bm:\d+|bn:\d+:\w+):\d+$"))
+    app.add_handler(CallbackQueryHandler(plx.pick_bot_kind_months, pattern=r"^plx:bk:\d+:\w+$"))
     app.add_handler(CallbackQueryHandler(plx.cancel, pattern=r"^plx:x:\d+$"))
     app.add_handler(CallbackQueryHandler(plx.decide, pattern=r"^pla:(ok|no):\d+$"))
     # Anchored new-style callbacks go first: the legacy patterns below are unanchored substrings.

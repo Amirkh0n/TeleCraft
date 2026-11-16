@@ -545,3 +545,16 @@ API `/api/v1/admin/*` har so‘rovda adminligini tekshiradi (boshqalarga 403).
 - **Tizim**: baza versiyasi, zaxira nusxani hozir olish, tarif bo‘yicha platforma xabari, admin jurnali (kim, nima, kimga).
 - Migration `0014` (`admin_log`, faqat qo‘shimcha jadval). Narx va limitlarni panelda tahrirlash hozircha yo‘q: ular `core/plans.py` da.
 
+## Bosh menyu va tayyor botlar galereyasi
+
+- Asosiy botda `/start` (yoki `/menu`) endi oxirgi botni ochmaydi, **Bosh menyu** chiqadi: Botlarim, Yangi bot, 🧩 Tayyor botlar,
+  Muharrir (Mini App), Tarif va to‘lov, Yordam; oxirgi bot esa «▶️ Davom etish» tugmasi bilan. Adminlarga 🛡 Admin panel.
+- **Tayyor botlar**: kino, do‘kon, kurs, bron, test, pullik kanal, ariza. Har birida tavsif, boshlash qadamlari, narx.
+  «Yangi bot sifatida yaratish» (token so‘raladi va bot darhol shu rejimda tayyor bo‘ladi) yoki «Mavjud botimda yoqish».
+  Tarifda yopiq rejim 🔒 bilan; ochish uchun tarifni oshirish yoki **shu bot uchun alohida to‘lash** mumkin
+  (to‘lov tasdiqlangach bot o‘sha rejimga o‘tadi).
+- Mini App endi **Bosh sahifa** bilan ochiladi: tarif, botlar ro‘yxati (bosilsa muharrir), «Yangi bot» va xuddi shu galereya.
+  Muharrirdan qaytish: chap yuqoridagi logotip. Bot yaratish tokeni asosiy botga yuboriladi: Mini App uni `?start=new_<rejim>` havola bilan ochadi.
+- Buyruqlar menyusi (`/start`, `/menu`, `/tarif`, `/cancel`) ishga tushganda o‘rnatiladi. `MAIN_BOT_USERNAME` Mini App havolalari uchun kerak
+  (bo‘sh bo‘lsa, `getMe` orqali olinadi).
+
