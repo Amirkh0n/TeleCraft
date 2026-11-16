@@ -16,9 +16,9 @@ export function mountAdmin(ctx) {
   function adminPage() {
     const tab = (id, label, ic) => h("button", { class: "tab", "aria-current": A.tab === id, onClick: () => { A.tab = id; haptic(); adminLoad(); rerender(); } }, icon(ic), label);
     const body = { home: homePage, pays: paysPage, cust: custPage, bots: botsPage, sys: sysPage }[A.tab]();
-    return [h("div", { class: "top" }, h("div", { class: "mark" }, starMark()),
+    return [h("div", { class: "top" }, h("button", { class: "ghost", "aria-label": "Bosh sahifaga qaytish", onClick: () => { S.admin = false; S.view = "home"; rerender(); } }, icon("chev", "back")),
       h("div", { style: "min-width:0;flex:1" }, h("div", { class: "name", text: "Admin" }), h("div", { class: "sub", text: "Platforma boshqaruvi" })),
-      S.bots.length ? h("button", { class: "ghost", "aria-label": "Muharrirga qaytish", onClick: () => { S.admin = false; rerender(); } }, icon("screen")) : null),
+      null),
     body, h("nav", { class: "tabbar five", "aria-label": "Admin bo‘limlari" }, tab("home", "Bosh", "chart"), tab("pays", "To‘lovlar", "form"), tab("cust", "Mijozlar", "user"), tab("bots", "Botlar", "screen"), tab("sys", "Tizim", "list"))];
   }
 

@@ -295,9 +295,18 @@ function starMark() {
   return svg;
 }
 
+const goHome = () => { S.admin = false; S.view = "home"; haptic(); renderApp(); };
+let backBound = false;
+function syncBack() {  // Telegram's own back arrow mirrors the on-screen one
+  const bb = tg && tg.BackButton;
+  if (!bb) return;
+  if (!backBound) { try { bb.onClick(goHome); backBound = true; } catch (_) { return; } }
+  try { (S.admin || (S.view === "editor" && S.bot && !S.loading)) ? bb.show() : bb.hide(); } catch (_) { /* older clients */ }
+}
 let adminKit;
 const adminApi = () => (adminKit ||= mountAdmin({ h, api, toast, openSheet, field, segmented, guarded, money, icon, S, haptic, starMark, KIND_LABEL, renderApp }));
-function renderApp() {
+function renderApp() { renderScreen(); syncBack(); }
+function renderScreen() {
   if (S.admin && !S.expired) { app.replaceChildren(...adminApi().adminPage()); return; }
   if (S.expired) {
     app.replaceChildren(splash("Sessiya tugadi", "Muharrirni yopib, konstruktor botdan qayta oching.", h("button", { class: "btn", onClick: () => (tg ? tg.close() : location.reload()) }, "Yopish")));
@@ -319,7 +328,7 @@ function renderApp() {
 function header() {
   const multi = S.bots.length > 1;
   return h("div", { class: "top" },
-    h("button", { class: "mark", "aria-label": "Bosh sahifa", onClick: () => { S.view = "home"; haptic(); renderApp(); } }, starMark()),
+    h("button", { class: "ghost", "aria-label": "Bosh sahifaga qaytish", onClick: goHome }, icon("chev", "back")),
     h("button", { class: "botpick", disabled: !multi, "aria-label": "Botni almashtirish", onClick: openBotPicker },
       h("div", { style: "min-width:0" },
         h("div", { class: "name", text: S.bot.name }),
