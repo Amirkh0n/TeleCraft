@@ -17,3 +17,4 @@ cryptography>=42.0
 asyncpg>=0.29
 alembic>=1.13
 tzdata
+openpyxl>=3.1
