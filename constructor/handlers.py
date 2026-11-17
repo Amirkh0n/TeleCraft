@@ -38,6 +38,10 @@ def plans_plain(text: str) -> str:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Register the constructor user and resume their most recent builder context."""
     tg_user = update.effective_user
+    if context.args and context.args[0].startswith("ref_"):
+        from core import referrals
+        async with AsyncSessionLocal() as session:
+            await referrals.register(session, tg_user.id, tg_user.full_name, context.args[0])
     user = await ensure_constructor_user(tg_user.id, tg_user.full_name)
     builder_session = await restore_builder_session(user.id, context)
     from constructor.flows import home
@@ -172,6 +176,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
+        created = bot is None
         if bot is None:
             from core import plans
             try:
@@ -218,6 +223,9 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bot_id = bot.id
         start_menu_id = start_menu.id
 
+    if created:
+        from constructor.flows.referral import friend_built_bot
+        await friend_built_bot(context, user.id)
     webhook_ok = await set_webhook(token, build_webhook_url(token))
     kind = (context.user_data.get("draft") or {}).get("kind")
     if kind:

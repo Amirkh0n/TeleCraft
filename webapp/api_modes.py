@@ -223,6 +223,8 @@ async def home(user=Depends(current_user), session: AsyncSession = Depends(get_s
         icon, name, about, steps = MODES[kind]
         gallery.append({"kind": kind, "icon": icon, "name": name, "about": about, "steps": steps, "price": plans.KIND_PRICES[kind],
                         "min_plan": plans.PLANS[plans.KIND_MIN_PLAN[kind]].title, "locked": enforced and kind not in plan.kinds})
-    return {"plan": plan.title, "status": status, "expires_at": acc.expires_at.isoformat() if acc and status != "free" else None,
+    main_name = await _main_bot_username()
+    from core import referrals
+    return {"referral": await referrals.info(session, user, main_name), "plan": plan.title, "status": status, "expires_at": acc.expires_at.isoformat() if acc and status != "free" else None,
             "enforced": enforced, "bots": await plans.bot_count(session, user.id), "max_bots": plan.max_bots,
-            "gallery": gallery, "main_bot": await _main_bot_username()}
+            "gallery": gallery, "main_bot": main_name}

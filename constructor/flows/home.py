@@ -49,7 +49,8 @@ async def show_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last = next((b for b in bots if b.id == context.user_data.get("current_bot_id")), None)
     if last is not None:
         rows.append([Btn(f"▶️ Davom etish: {last.name}"[:60], callback_data=f"bot_{last.id}")])
-    rows.append([Btn("💳 Tarif va to‘lov", callback_data="plx:home"), Btn("❓ Yordam", callback_data="help")])
+    rows.append([Btn("💳 Tarif va to‘lov", callback_data="plx:home"), Btn("🎁 Do‘st taklif", callback_data="ref:home")])
+    rows.append([Btn("❓ Yordam", callback_data="help")])
     if plans.is_platform_admin(tg.id) and url:
         rows.append([Btn("🛡 Admin panel", web_app=WebAppInfo(url=url))])
     await show_screen(update, text, rows, edit=bool(update.callback_query))

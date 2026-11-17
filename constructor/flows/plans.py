@@ -88,6 +88,7 @@ async def plan_home(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if acc is None or not acc.trial_used:
         keyboard.append([Btn(f"🎁 {plans.TRIAL_DAYS} kun bepul Pro", callback_data="plx:trial")])
     keyboard.append([Btn("🤖 Bitta botni ochish (alohida to‘lov)", callback_data="plx:b")])
+    keyboard.append([Btn("🎁 10 do‘st taklif qiling — 1 oy Start bepul", callback_data="ref:home")])
     keyboard.append([Btn("🏠 Bosh menyu", callback_data="home")])
     await show_screen(update, "\n".join(lines), keyboard, edit=bool(update.callback_query))
 

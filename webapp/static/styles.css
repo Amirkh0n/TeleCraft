@@ -297,3 +297,6 @@ svg.i.back { transform: rotate(90deg); }
 .tbl tbody tr:active, .tbl tbody tr:hover { background: var(--cobalt-soft); }
 .photo-box { min-height: 60px; } .photo-box img { max-width: 100%; border-radius: 10px; display: block; }
 .answer dd { margin: 0; overflow-wrap: anywhere; }
+
+.progress { height: 8px; border-radius: 99px; background: var(--cobalt-soft); overflow: hidden; margin: 8px 0; }
+.progress > div { height: 100%; background: var(--cobalt); border-radius: 99px; }

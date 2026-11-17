@@ -42,6 +42,8 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(hm.gallery_set, pattern=r"^gal:set:\w+:\d+$"))
     app.add_handler(CallbackQueryHandler(hm.gallery_pay_for, pattern=r"^gal:payfor:\w+:\d+$"))
     app.add_handler(CommandHandler("payments", plx.pending_command))
+    from constructor.flows import referral as refx
+    app.add_handler(CallbackQueryHandler(refx.show, pattern=r"^ref:home$"))
     app.add_handler(CallbackQueryHandler(plx.plan_home, pattern=r"^plx:home$"))
     app.add_handler(CallbackQueryHandler(plx.pick_plan, pattern=r"^plx:p:\w+$"))
     app.add_handler(CallbackQueryHandler(plx.pick_bot, pattern=r"^plx:b$"))
