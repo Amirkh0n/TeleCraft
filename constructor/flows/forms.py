@@ -121,7 +121,7 @@ async def open_form(update: Update, context: ContextTypes.DEFAULT_TYPE, form_id:
     lines += ["", f"📥 Javoblar: {count}", f"🔔 Adminlarga xabar: {'yoqilgan' if form.notify_admins else 'o‘chirilgan'}"]
     keyboard = [
         [InlineKeyboardButton("➕ Savol qo‘shish", callback_data=f"frm:addq:{form.id}")],
-        [InlineKeyboardButton("📥 Javoblar / CSV", callback_data=f"frm:subs:{form.id}")],
+        [InlineKeyboardButton("📥 Javoblar / Excel", callback_data=f"frm:subs:{form.id}")],
         [InlineKeyboardButton("👋 Kirish matni", callback_data=f"frm:intro:{form.id}"),
          InlineKeyboardButton("✅ Yakuniy xabar", callback_data=f"frm:final:{form.id}")],
         [InlineKeyboardButton("🔔 Xabarni yoqish/o‘chirish", callback_data=f"frm:notify:{form.id}")],
@@ -380,6 +380,19 @@ async def show_submissions(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if parts[1] == "xlsx":
+        if not subs:
+            await update.callback_query.answer("Hali javob yo‘q.", show_alert=True)
+            return
+        from engine.forms_export import build_xlsx
+        await update.callback_query.answer()
+        await update.callback_query.message.reply_document(
+            document=io.BytesIO(build_xlsx(form.title, fields, list(reversed(subs)))),
+            filename=f"{re.sub(r'[^A-Za-z0-9_-]+', '_', form.title)[:40] or 'forma'}.xlsx",
+            caption=f"📊 {len(subs)} ta javob",
+        )
+        return
+
     from engine.forms import format_submission
     lines = [f"📥 <b>{html.escape(form.title)}</b> — oxirgi javoblar", ""]
     if not subs:
@@ -388,7 +401,8 @@ async def show_submissions(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender = {"id": sub.tg_user_id, "username": sub.username}
         lines.append(format_submission(form.title, sender, sub.full_name, sub.answers or []).split("\n", 1)[1])
         lines.append("———")
-    keyboard = [[InlineKeyboardButton("📄 CSV yuklab olish", callback_data=f"frm:csv:{form.id}")],
+    keyboard = [[InlineKeyboardButton("📊 Excel yuklab olish", callback_data=f"frm:xlsx:{form.id}"),
+                 InlineKeyboardButton("📄 CSV", callback_data=f"frm:csv:{form.id}")],
                 [InlineKeyboardButton("⬅️ Forma", callback_data=f"frm:open:{form.id}")]]
     await show_screen(update, "\n".join(lines)[:3900], keyboard)
 

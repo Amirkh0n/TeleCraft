@@ -709,20 +709,67 @@ function openQuestionSheet(q, onDone, onDelete, onMove, isNew = false) {
       h("button", { type: "button", "aria-label": "Yuqoriga", onClick: () => { sheet.close(); onMove(-1); } }, icon("up")), h("button", { type: "button", "aria-label": "Pastga", onClick: () => { sheet.close(); onMove(1); } }, icon("down")))) : null] });
 }
 
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob); const a = h("a", { href: url, download: name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+const answerText = (type, v) => (v === null || v === undefined || v === "" ? "—" : type === "photo" ? "📷 rasm" : type === "location" ? "📍 xarita" : String(v));
+const stamp = (iso) => (iso ? new Date(iso).toLocaleString("ru-RU", { timeZone: "Asia/Tashkent", day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+
 function openSubmissions(form) {
-  const body = h("div", { class: "sub-list" }, h("div", { class: "spin" }));
-  const csv = h("button", { class: "btn", onClick: () => guarded(csv, async () => {
-    const blob = await api("GET", `/forms/${form.id}/export.csv`);
-    const url = URL.createObjectURL(blob); const a = h("a", { href: url, download: `${form.title.replace(/[^\w-]+/g, "_") || "forma"}.csv` }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
-  }) }, icon("download"), "CSV yuklab olish");
-  openSheet({ title: form.title, tall: true, body: [body], foot: [csv] });
-  guarded(null, async () => {
-    const rows = await api("GET", `/forms/${form.id}/submissions?limit=30`);
-    if (!rows.length) { body.replaceChildren(h("div", { class: "empty" }, emptyArt(), h("h3", { text: "Hali javob yo‘q" }), h("p", { text: "Mijozlar formani to‘ldirgach, javoblar shu yerda paydo bo‘ladi." }))); return; }
-    body.replaceChildren(...rows.map((r) => h("div", { class: "answer" },
-      h("h4", { text: `${r.full_name || "Noma‘lum"}${r.username ? ` · @${r.username}` : ""}` }),
-      h("dl", {}, r.answers.flatMap((a) => [h("dt", { text: a.label }), h("dd", { text: a.value === null ? "—" : a.type === "photo" ? "rasm" : String(a.value) })])))));
-  });
+  const st = { q: "", rows: [], columns: [], total: 0, more: false, loading: true };
+  const wrap = h("div", { class: "tbl-wrap" });
+  const count = h("p", { class: "hint", text: "" });
+  const search = h("input", { class: "input", type: "search", placeholder: "Qidirish: ism, @username, javob", autocomplete: "off" });
+  const draw = () => {
+    count.textContent = st.loading ? "Yuklanmoqda…" : `${st.total} ta javob${st.q ? " (qidiruv natijasi)" : ""}`;
+    if (st.loading && !st.rows.length) { wrap.replaceChildren(h("div", { class: "spin" })); return; }
+    if (!st.rows.length) {
+      wrap.replaceChildren(h("div", { class: "empty" }, emptyArt(), h("h3", { text: st.q ? "Hech narsa topilmadi" : "Hali javob yo‘q" }),
+        h("p", { text: st.q ? "Boshqa so‘z bilan qidirib ko‘ring." : "Mijozlar formani to‘ldirgach, javoblar shu yerda jadval bo‘lib paydo bo‘ladi." }))); return;
+    }
+    const head = h("tr", {}, h("th", { text: "Sana" }), h("th", { text: "Mijoz" }), ...st.columns.map((c) => h("th", { text: c.label })));
+    const body = st.rows.map((r) => h("tr", { onClick: () => openResponse(form, r, st.columns, () => { st.rows = st.rows.filter((x) => x.id !== r.id); st.total -= 1; form.submissions = Math.max(0, form.submissions - 1); draw(); }) },
+      h("td", { class: "nw", text: stamp(r.at) }), h("td", { class: "nw", text: r.full_name || (r.username ? `@${r.username}` : String(r.tg_user_id)) }),
+      ...st.columns.map((c) => h("td", { text: answerText(c.type, r.cells[c.label]) }))));
+    wrap.replaceChildren(h("table", { class: "tbl" }, h("thead", {}, head), h("tbody", {}, ...body)));
+    if (st.more) wrap.append(h("button", { class: "btn line block", style: "margin-top:10px", onClick: (e) => guarded(e.currentTarget, () => load(false)) }, "Yana yuklash"));
+  };
+  const load = async (reset) => {
+    st.loading = true; if (reset) { st.rows = []; draw(); }
+    const data = await api("GET", `/forms/${form.id}/responses?q=${encodeURIComponent(st.q)}&offset=${reset ? 0 : st.rows.length}`);
+    st.columns = data.columns; st.total = data.total; st.more = data.more; st.rows = reset ? data.rows : st.rows.concat(data.rows); st.loading = false; draw();
+  };
+  let timer;
+  search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { st.q = search.value.trim(); guarded(null, () => load(true)); }, 350); });
+  const xlsx = h("button", { class: "btn", onClick: () => guarded(xlsx, async () => {
+    downloadBlob(await api("GET", `/forms/${form.id}/export.xlsx`), `${form.title.replace(/[^\w-]+/g, "_") || "forma"}.xlsx`);
+  }) }, icon("download"), "Excel yuklab olish");
+  openSheet({ title: form.title, tall: true, wide: true, body: [search, count, wrap], foot: [xlsx] });
+  draw(); guarded(null, () => load(true));
+}
+
+function openResponse(form, r, columns, onDeleted) {
+  const photoBox = (label) => {
+    const box = h("div", { class: "photo-box" }, h("div", { class: "spin" }));
+    api("GET", `/forms/${form.id}/submissions/${r.id}/photo?label=${encodeURIComponent(label)}`).then((blob) => box.replaceChildren(h("img", { src: URL.createObjectURL(blob), alt: label })))
+      .catch((err) => box.replaceChildren(h("small", { text: err.message })));
+    return box;
+  };
+  const cell = (c) => {
+    const v = r.cells[c.label];
+    if (v === null || v === undefined || v === "") return h("dd", { text: "—" });
+    if (c.type === "photo") return h("dd", {}, photoBox(c.label));
+    if (c.type === "location") return h("dd", {}, h("a", { href: `https://maps.google.com/?q=${v}`, target: "_blank", rel: "noopener", text: `📍 ${v}` }));
+    if (c.type === "phone") return h("dd", {}, h("a", { href: `tel:${v}`, text: v }));
+    if (c.type === "email") return h("dd", {}, h("a", { href: `mailto:${v}`, text: v }));
+    return h("dd", { text: String(v) });
+  };
+  const who = h("div", { class: "answer" }, h("h4", { text: r.full_name || "Noma‘lum" }),
+    h("dl", {}, h("dt", { text: "Sana" }), h("dd", { text: stamp(r.at) }), h("dt", { text: "Telegram" }),
+      r.username ? h("dd", {}, h("a", { href: `https://t.me/${r.username}`, target: "_blank", rel: "noopener", text: `@${r.username}` })) : h("dd", { text: String(r.tg_user_id) })));
+  const answers = h("div", { class: "answer" }, h("h4", { text: "Javoblar" }), h("dl", {}, columns.flatMap((c) => [h("dt", { text: c.label }), cell(c)])));
+  const del = h("button", { class: "btn danger", onClick: () => confirmDelete("bu javob", async () => { await api("DELETE", `/forms/${form.id}/submissions/${r.id}`); sheet.close(); onDeleted(); toast("O‘chirildi"); }) }, "Javobni o‘chirish");
+  const sheet = openSheet({ title: `Javob #${r.id}`, tall: true, body: [who, answers], foot: [del] });
 }
 
 /* ---- stats tab */

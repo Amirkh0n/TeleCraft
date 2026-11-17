@@ -67,7 +67,7 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(form_flows.toggle_notify, pattern=r"^frm:notify:\d+$"))
     app.add_handler(CallbackQueryHandler(form_flows.edit_text_click, pattern=r"^frm:(intro|final):\d+$"))
     app.add_handler(CallbackQueryHandler(form_flows.delete_form, pattern=r"^frm:(del|delok):\d+$"))
-    app.add_handler(CallbackQueryHandler(form_flows.show_submissions, pattern=r"^frm:(subs|csv):\d+$"))
+    app.add_handler(CallbackQueryHandler(form_flows.show_submissions, pattern=r"^frm:(subs|csv|xlsx):\d+$"))
     app.add_handler(CallbackQueryHandler(form_flows.pick_form_for_button, pattern=r"^act:form$"))
     app.add_handler(CallbackQueryHandler(form_flows.use_form, pattern=r"^frm:use:\d+$"))
     app.add_handler(CallbackQueryHandler(cin.cinema_home, pattern=r"^cin:home$"))
