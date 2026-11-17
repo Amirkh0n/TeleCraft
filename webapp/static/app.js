@@ -1005,7 +1005,24 @@ function homePage() {
       h("p", { class: "hint", text: "Rejimni tanlang: bot kerakli funksiyalar bilan shu zahoti tayyor bo‘ladi." }),
       h("div", { class: "facts" }, p.gallery.map((g) => h("button", { class: "fact", style: "text-align:left;border:0", onClick: () => openGallery(g) },
         h("b", { text: `${g.locked ? "🔒 " : ""}${g.icon}` }), h("small", { style: "display:block;color:var(--ink)", text: g.name }), h("small", { style: "display:block", text: `${money(g.price)}/oy` }))))) : null,
+    p && p.referral ? referralCard(p.referral) : null,
     p && p.enforced ? h("p", { class: "hint", text: "Tarif va to‘lov: asosiy botdagi «Tarif va to‘lov» bo‘limida." }) : null);
+}
+function referralCard(r) {
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(r.link); toast("Havola nusxalandi"); } catch { toast(r.link); }
+  };
+  const share = () => {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(r.link)}&text=${encodeURIComponent("Kod yozmasdan Telegram bot yarating:")}`;
+    if (tg) tg.openTelegramLink(url); else window.open(url, "_blank");
+  };
+  return h("div", { class: "section" }, h("h3", { text: `🎁 Do‘st taklif: ${r.reward} bepul` }),
+    h("p", { class: "hint", text: `${r.need} ta do‘stingiz havolangiz orqali kirib, bot yaratsa — ${r.reward} tarifi sizga.` }),
+    h("div", { class: "progress", role: "progressbar", "aria-valuenow": String(r.done), "aria-valuemax": String(r.need) },
+      h("div", { style: `width:${Math.min(100, (r.done / r.need) * 100)}%` })),
+    h("p", { class: "hint", text: r.rewarded ? "✅ Mukofot olingan." : `Bot yaratganlar: ${r.done} / ${r.need}${r.joined ? ` · hali yaratmaganlar: ${r.joined}` : ""}` }),
+    r.link ? h("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:8px" },
+      h("button", { class: "btn", onClick: share }, "📤 Yuborish"), h("button", { class: "btn line", onClick: copy }, "Nusxalash")) : null);
 }
 const MODE_ICONS = { cinema: "🎬", booking: "📅", quiz: "📝", course: "🎓", shop: "🛒", join: "📨", paid: "💎" };
 
