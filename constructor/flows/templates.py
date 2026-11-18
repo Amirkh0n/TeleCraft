@@ -21,6 +21,19 @@ async def has_content(session, bot_id: int) -> bool:
     return bool(menus) and (await session.execute(select(Button.id).where(Button.menu_id.in_(menus)).limit(1))).first() is not None
 
 
+async def wipe(session, bot_id: int, start: Menu) -> None:
+    """Remove every button and every menu except ``start``. Users' open screens move to the start menu first."""
+    others = (await session.execute(select(Menu.id).where(Menu.bot_id == bot_id, Menu.id != start.id))).scalars().all()
+    all_ids = [start.id, *others]
+    await session.execute(sql_update(UserSession).where(UserSession.bot_id == bot_id).values(current_menu_id=start.id).execution_options(synchronize_session=False))
+    button_ids = (await session.execute(select(Button.id).where(Button.menu_id.in_(all_ids)))).scalars().all()
+    if button_ids:
+        await session.execute(delete(ButtonAction).where(ButtonAction.button_id.in_(button_ids)).execution_options(synchronize_session=False))
+        await session.execute(delete(Button).where(Button.id.in_(button_ids)).execution_options(synchronize_session=False))
+    if others:
+        await session.execute(delete(Menu).where(Menu.id.in_(others)).execution_options(synchronize_session=False))
+
+
 async def apply(session, bot: Bot, key: str) -> None:
     """Replace the bot's menus with the template. Users' open screens move to the start menu first."""
     tpl = BY_KEY[key]
@@ -29,15 +42,7 @@ async def apply(session, bot: Bot, key: str) -> None:
         start = Menu(bot_id=bot.id, title="Bosh menyu", is_start=True, position=0)
         session.add(start)
         await session.flush()
-    others = (await session.execute(select(Menu.id).where(Menu.bot_id == bot.id, Menu.id != start.id))).scalars().all()
-    all_ids = [start.id, *others]
-    await session.execute(sql_update(UserSession).where(UserSession.bot_id == bot.id).values(current_menu_id=start.id).execution_options(synchronize_session=False))
-    button_ids = (await session.execute(select(Button.id).where(Button.menu_id.in_(all_ids)))).scalars().all()
-    if button_ids:
-        await session.execute(delete(ButtonAction).where(ButtonAction.button_id.in_(button_ids)).execution_options(synchronize_session=False))
-        await session.execute(delete(Button).where(Button.id.in_(button_ids)).execution_options(synchronize_session=False))
-    if others:
-        await session.execute(delete(Menu).where(Menu.id.in_(others)).execution_options(synchronize_session=False))
+    await wipe(session, bot.id, start)
 
     start.message_text, start.title, start.columns, start.keyboard_mode = tpl.start, "Bosh menyu", 2, "inline"
     start.media_type = start.media_file_id = None

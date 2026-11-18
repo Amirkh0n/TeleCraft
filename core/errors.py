@@ -37,6 +37,8 @@ async def http_error_handler(request: Request, exc: HTTPException):
 
 async def general_error_handler(request: Request, exc: Exception):
     """Handle general exceptions"""
+    from core import alerts
+    alerts.record_failure(None, exc)
     error_data = ErrorResponse(
         error="Internal Server Error",
         message="An unexpected error occurred",
