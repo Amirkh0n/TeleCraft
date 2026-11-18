@@ -26,7 +26,7 @@ def top_rows(bot, editor_row) -> list[list[Btn]]:
     else:
         rows.append([Btn("✨ Tayyor rejim tanlash", callback_data=f"grp:modes:{bot.id}")])
     rows.append([Btn("👥 Mijozlar", callback_data=f"grp:clients:{bot.id}"), Btn("⚙️ Sozlamalar", callback_data=f"grp:settings:{bot.id}")])
-    rows.append([Btn("🧪 Sinab ko‘rish", callback_data="test_bot"), Btn("📊 Holat", callback_data="bot_status")])
+    rows.append([Btn("🧪 Sinab ko‘rish", callback_data="test_bot"), Btn("📊 Statistika", callback_data="bot_status")])
     rows.append([Btn("⬅️ Botlarim", callback_data="back_to_bots")])
     return rows
 

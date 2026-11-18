@@ -784,6 +784,12 @@ async function loadStats() {
   try { S.stats = await api("GET", `/bots/${S.bot.id}/stats`); } catch (err) { toast(err.message, true); return; }
   if (S.tab === "stats") renderApp();
 }
+function dailyChart(daily) {
+  const top = Math.max(1, ...daily.map((d) => d.new));
+  const cols = daily.map((d) => h("div", { class: "col", title: `${d.day}: ${d.new}` }, h("div", { class: "pillar", style: `height:${d.new ? Math.max(6, (d.new / top) * 100) : 2}%` })));
+  return h("div", { style: "margin:14px 0" }, h("h3", { text: "Yangi foydalanuvchilar (14 kun)" }), h("div", { class: "daily", role: "img", "aria-label": `Kunlik yangi foydalanuvchilar: ${daily.map((d) => d.new).join(", ")}` }, ...cols),
+    h("div", { class: "daily-axis" }, h("span", { text: daily[0].day.slice(5) }), h("span", { text: "bugun" })));
+}
 function statsPage() {
   const s = S.stats;
   if (!s) return h("div", { class: "page" }, h("div", { class: "splash", style: "min-height:50dvh" }, h("div", { class: "spin" })));
@@ -798,11 +804,18 @@ function statsPage() {
     h("p", { class: "sentence" }, h("em", { text: s.total }), ` kishi botdan foydalangan, `, h("em", { text: s.active }), " tasiga hozir ham yozish mumkin."),
     h("div", { class: "bars" }, bar("Yangi, 24 soat", s.new_24h), bar("Yangi, 7 kun", s.new_7d), bar("Yangi, 30 kun", s.new_30d),
       bar("Faol, 24 soat", s.active_24h, "t"), bar("Faol, 7 kun", s.active_7d, "t")),
+    s.cap && s.cap.used >= s.cap.limit * 0.8 ? h("div", { class: "notice" }, h("b", { text: `Limit: ${s.cap.used} / ${s.cap.limit}` }), h("p", { text: "Yangi foydalanuvchilar qabul qilinmay qolishi mumkin. Tarifni asosiy botdagi «Tarif va to‘lov» bo‘limidan oshiring." })) : null,
+    dailyChart(s.daily),
     h("div", { class: "facts" },
+      h("div", { class: "fact" }, h("b", { text: s.clicks_7d }), h("small", { text: "tugma bosildi (7 kun)" })),
+      h("div", { class: "fact" }, h("b", { text: s.clickers_7d }), h("small", { text: "kishi bosdi (7 kun)" })),
       h("div", { class: "fact" }, h("b", { text: s.submissions }), h("small", { text: "forma javobi" })),
       h("div", { class: "fact" }, h("b", { text: s.blocked }), h("small", { text: "botni bloklagan" })),
       h("div", { class: "fact" }, h("b", { text: s.broadcast_messages }), h("small", { text: "xabar yuborilgan" })),
       h("div", { class: "fact" }, h("b", { text: s.sources.length }), h("small", { text: "havola manbasi" }))),
+    s.top_buttons.length ? h("div", { style: "margin-top:16px" }, h("h3", { text: "Ko‘p bosilgan tugmalar (30 kun)" }),
+      h("div", { class: "bars" }, ...s.top_buttons.map((b) => h("div", { class: "bar", style: "grid-template-columns:1fr 44px" }, h("span", { text: b.text }), h("b", { text: b.clicks }))))) : null,
+    s.broadcasts.length ? h("p", { class: "hint", style: "margin-top:12px", text: `Oxirgi broadcast: ${s.broadcasts[0].sent} / ${s.broadcasts[0].total} kishiga yetdi.` }) : null,
     s.sources.length ? h("div", { class: "bars", style: "margin-top:14px" }, ...s.sources.map(([name, n]) => h("div", { class: "bar", style: "grid-template-columns:1fr 40px" }, h("span", { text: name }), h("b", { text: n })))) : null,
     channelsSection());
 }

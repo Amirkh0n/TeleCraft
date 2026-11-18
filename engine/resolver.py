@@ -1,6 +1,7 @@
 """Decide WHAT an incoming update means (an action), without sending anything."""
 from sqlalchemy import select
 
+from engine import clicks
 from models.button_actions import ActionType, ButtonAction
 from models.buttons import Button
 from models.codes import Code
@@ -16,8 +17,8 @@ async def handle_start(bot, message, session):
     return ActionType.menu, str(menu.id)
 
 
-async def _action_for_button(session, bot_id, button_id):
-    """The action of a button, but only if the button belongs to this bot."""
+async def _action_for_button(session, bot_id, button_id, user_id=None):
+    """The action of a button, but only if the button belongs to this bot. The click is logged for statistics."""
     result = await session.execute(
         select(ButtonAction)
         .join(Button, Button.id == ButtonAction.button_id)
@@ -25,7 +26,11 @@ async def _action_for_button(session, bot_id, button_id):
         .where(ButtonAction.button_id == button_id, Menu.bot_id == bot_id)
     )
     action = result.scalar_one_or_none()
-    return (action.action_type, action.value) if action else (None, None)
+    if action is None:
+        return None, None
+    result = (action.action_type, action.value)
+    await clicks.record(session, bot_id, user_id, button_id)
+    return result
 
 
 async def handle_button(bot, callback, session):
@@ -33,10 +38,10 @@ async def handle_button(bot, callback, session):
         button_id = int(callback.get("data", ""))
     except (TypeError, ValueError):
         return None, None
-    return await _action_for_button(session, bot.id, button_id)
+    return await _action_for_button(session, bot.id, button_id, (callback.get("from") or {}).get("id"))
 
 
-async def _reply_button_action(session, bot_id, menu_id, text):
+async def _reply_button_action(session, bot_id, menu_id, text, user_id=None):
     """Action of the reply-keyboard button labelled ``text`` on a menu (None if no such button)."""
     result = await session.execute(
         select(Button.id)
@@ -50,7 +55,7 @@ async def _reply_button_action(session, bot_id, menu_id, text):
     button_id = result.scalars().first()
     if button_id is None:
         return None, None
-    return await _action_for_button(session, bot_id, button_id)
+    return await _action_for_button(session, bot_id, button_id, user_id)
 
 
 async def handle_text(bot, message, session, user_session=None):
@@ -61,7 +66,7 @@ async def handle_text(bot, message, session, user_session=None):
 
     # Reply-keyboard button of the menu the user is on.
     if user_session:
-        found = await _reply_button_action(session, bot.id, user_session.current_menu_id, text)
+        found = await _reply_button_action(session, bot.id, user_session.current_menu_id, text, (message.get("from") or {}).get("id"))
         if found[0]:
             return found
 
