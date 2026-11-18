@@ -35,7 +35,7 @@ def group_rows(name: str, bot) -> tuple[str, list[list[Btn]]] | None:
     if name == "content":
         return "📂 Kontent\n\nBot nimani ko‘rsatishini shu yerda sozlang.", [
             [Btn("📂 Menyular", callback_data="menus"), Btn("🔘 Tugmalar", callback_data="start_buttons")],
-            [Btn("📋 Formalar", callback_data="frm:list")]]
+            [Btn("📋 Formalar", callback_data="frm:list"), Btn("✨ Shablonlar", callback_data=f"tpl:list:{bot.id}")]]
     if name == "clients":
         return "👥 Mijozlar\n\nBot foydalanuvchilari bilan ishlash.", [
             [Btn("👥 Auditoriya", callback_data="aud:home"), Btn("📣 Broadcast", callback_data="bc:home")],
