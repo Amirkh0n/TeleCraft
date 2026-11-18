@@ -2,10 +2,12 @@ from sqlalchemy import select
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from core.logger import get_logger
+from engine import i18n
 from engine.forms import start_form
 from engine.render import parse_media_value, send_media, send_screen, send_text
 from models.admin_links import AdminLink
 from models.button_actions import ActionType
+from models.bots import Bot
 from models.buttons import Button
 from models.menus import Menu
 from models.user_sessions import UserSession
@@ -23,6 +25,7 @@ async def get_user_session(session, bot_id, tg_user_id):
 async def execute_action(bot_model, action_type, value, tg_user_id, session, *, tg, user_session=None):
     """Run what a button / code / start command asked for. ``tg`` is the child bot's client."""
     chat_id = tg_user_id  # private chats: chat id == user id
+    lang = await i18n.user_lang(session, bot_model, tg_user_id)
 
     if action_type == ActionType.text:
         await send_text(tg, chat_id, value)
@@ -30,12 +33,12 @@ async def execute_action(bot_model, action_type, value, tg_user_id, session, *, 
     elif action_type == ActionType.link:
         await tg.send_message(
             chat_id=chat_id,
-            text="Havolani ochish uchun tugmani bosing.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Havolani ochish", url=value)]]),
+            text=i18n.s(lang, "open_hint"),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(i18n.s(lang, "open_link"), url=value)]]),
         )
 
     elif action_type == ActionType.menu:
-        await open_menu(tg, bot_model.id, int(value), chat_id, session)
+        await open_menu(tg, bot_model.id, int(value), chat_id, session, lang=lang, bot=bot_model)
 
     elif action_type == ActionType.admin:
         if value.startswith("reply:"):
@@ -48,9 +51,9 @@ async def execute_action(bot_model, action_type, value, tg_user_id, session, *, 
         media = parse_media_value(value)
         if media is None:
             logger.warning("Bot %s has a media action with an invalid value", bot_model.id)
-            await send_text(tg, chat_id, "Bu fayl hozir mavjud emas.")
+            await send_text(tg, chat_id, i18n.s(lang, "no_file"))
         elif not await send_media(tg, chat_id, media["type"], media["file_id"], caption=media.get("caption")):
-            await send_text(tg, chat_id, "Faylni yuborib bo‘lmadi. Keyinroq urinib ko‘ring.")
+            await send_text(tg, chat_id, i18n.s(lang, "file_fail"))
 
     elif action_type == ActionType.form:
         if user_session is None:
@@ -64,11 +67,11 @@ async def execute_action(bot_model, action_type, value, tg_user_id, session, *, 
         logger.info("Action type %s is not supported by the runtime", action_type)
 
 
-async def open_menu(tg, bot_id, menu_id, chat_id, session):
+async def open_menu(tg, bot_id, menu_id, chat_id, session, lang=None, bot=None):
     result = await session.execute(select(Menu).where(Menu.id == menu_id, Menu.bot_id == bot_id))
     menu = result.scalar_one_or_none()
     if menu is None:
-        await send_text(tg, chat_id, "Bu bo‘lim hozir mavjud emas.")
+        await send_text(tg, chat_id, i18n.s(lang, "no_menu"))
         return
 
     result = await session.execute(
@@ -77,7 +80,14 @@ async def open_menu(tg, bot_id, menu_id, chat_id, session):
     buttons = result.scalars().all()
 
     user_session = await save_session(bot_id, chat_id, menu_id, session)
-    await send_screen(tg, chat_id, menu, buttons, user_session)
+    if bot is None:
+        bot = await session.get(Bot, bot_id)
+        lang = lang or await i18n.user_lang(session, bot, chat_id)
+    tr = None
+    if bot is not None and i18n.multilingual(bot):
+        tr = await i18n.screen_texts(session, bot_id, lang, menu.id, [b.id for b in buttons])
+        tr["lang_button"] = bool(menu.is_start)
+    await send_screen(tg, chat_id, menu, buttons, user_session, tr)
     await session.commit()  # persists reply_keyboard_active as well
 
 

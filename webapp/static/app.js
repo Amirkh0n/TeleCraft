@@ -1,5 +1,6 @@
 // TeleCraft muharriri: a Telegram Mini App for building a bot by tapping what its users will see.
 import { mountAdmin } from "./admin.js?v=__V__";
+import { mountLangs } from "./langs.js?v=__V__";
 const tg = window.Telegram && window.Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor && tg.setHeaderColor("bg_color"); } catch (_) { /* older clients */ } }
 const initData = (tg && tg.initData) || "";
@@ -305,6 +306,8 @@ function syncBack() {  // Telegram's own back arrow mirrors the on-screen one
 }
 let adminKit;
 const adminApi = () => (adminKit ||= mountAdmin({ h, api, toast, openSheet, field, segmented, guarded, money, icon, S, haptic, starMark, KIND_LABEL, renderApp }));
+let langKit;
+const openLangs = () => (langKit ||= mountLangs({ h, api, toast, openSheet, field, switchRow, guarded, S })).open();
 function renderApp() { renderScreen(); syncBack(); }
 function renderScreen() {
   if (S.admin && !S.expired) { app.replaceChildren(...adminApi().adminPage()); return; }
@@ -428,7 +431,8 @@ function screensPage() {
   const chips = h("div", { class: "chips", role: "tablist", "aria-label": "Ekranlar" },
     S.menus.map((m) => h("button", { class: "chip", role: "tab", "aria-current": m.id === (menu && menu.id), onClick: () => { S.menuId = m.id; haptic(); renderApp(); } },
       m.is_start ? icon("star") : null, h("span", { text: m.title }))),
-    h("button", { class: "chip add", onClick: openNewMenu }, icon("plus"), "Ekran"));
+    h("button", { class: "chip add", onClick: openNewMenu }, icon("plus"), "Ekran"),
+    h("button", { class: "chip add", onClick: openLangs }, "🌐 Tillar"));
   if (!menu) {
     return h("div", { class: "page" }, chips, h("div", { class: "empty" }, emptyArt(), h("h3", { text: "Birinchi ekranni yarating" }),
       h("p", { text: "Ekran — bot /start bosilganda ko‘rsatadigan xabar va tugmalar." }), h("button", { class: "btn", onClick: openNewMenu }, icon("plus"), "Ekran qo‘shish")));

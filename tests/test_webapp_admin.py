@@ -200,7 +200,7 @@ async def test_platform_message_goes_to_the_chosen_plan(ac, monkeypatch):
 
 async def test_system_page_and_log(ac, monkeypatch):
     data = (await ac.get("/api/v1/admin/system", headers=ac.hdr)).json()
-    assert data["version"] == "0016_pricing_promo" and data["admins"] == 1 and data["log"] == []
+    assert data["version"] == "0017_bot_languages" and data["admins"] == 1 and data["log"] == []
 
     async def fake_backup(bot, admin_ids, engine, **kw):
         return len(admin_ids)
