@@ -6,7 +6,8 @@ export function mountAdmin(ctx) {
   const PLAN_NAMES = { free: "Free", start: "Start", pro: "Pro", business: "Business" };
   const PAY_STATUS = { pending: "⏳ Kutilmoqda", approved: "✅ Tasdiqlangan", rejected: "❌ Rad etilgan", cancelled: "Bekor", draft: "Qoralama" };
   const LOG_NAMES = { pay_ok: "To‘lov tasdiqlandi", pay_no: "To‘lov rad etildi", grant: "Tarif berildi", reset_trial: "Sinov tiklandi", message: "Xabar",
-    bot_on: "Bot yoqildi", bot_off: "Bot to‘xtatildi", broadcast: "Platforma xabari", backup: "Zaxira" };
+    bot_on: "Bot yoqildi", bot_off: "Bot to‘xtatildi", broadcast: "Platforma xabari", backup: "Zaxira",
+    pricing: "Narx/limit o‘zgardi", pricing_reset: "Narxlar tiklandi", promo_new: "Promo-kod yaratildi", promo_on: "Promo-kod yoqildi", promo_off: "Promo-kod o‘chirildi" };
 
   const dt = (iso) => (iso ? new Date(iso).toLocaleString("ru-RU", { timeZone: "Asia/Tashkent", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
   const dd = (iso) => (iso ? new Date(iso).toLocaleDateString("ru-RU", { timeZone: "Asia/Tashkent" }) : "—");
@@ -182,6 +183,8 @@ export function mountAdmin(ctx) {
         h("div", { class: "fact" }, h("b", { text: String(d.admins) }), h("small", { text: "Adminlar" }))),
       h("div", { style: "display:grid;gap:8px;margin:14px 0" },
         h("button", { class: "btn", onClick: (e) => guarded(e.currentTarget, async () => { await api("POST", "/admin/backup"); toast("Zaxira botga yuborildi"); A.sys = null; adminLoad(); }) }, "🗄 Zaxira nusxani hozir olish"),
+        h("button", { class: "btn ghost", onClick: pricingSheet }, "💰 Narx va limitlar"),
+        h("button", { class: "btn ghost", onClick: promoSheet }, "🎟 Promo-kodlar"),
         h("button", { class: "btn ghost", onClick: broadcastSheet }, "📣 Hamma mijozga xabar")),
       h("div", { class: "section" }, h("h3", { text: "Admin jurnali" }), d.log.length ? d.log.map((x) => h("p", { class: "hint", text: `${dt(x.at)} · ${x.admin} · ${LOG_NAMES[x.action] || x.action}${x.detail ? ` · ${x.detail}` : ""}` })) : empty("Hozircha bo‘sh.")));
   }
@@ -194,6 +197,66 @@ export function mountAdmin(ctx) {
         if (!area.value.trim() || !confirm("Xabar tanlangan mijozlarga yuboriladi. Davom etasizmi?")) return;
         const r = await api("POST", "/admin/broadcast", { text: area.value.trim(), plan }); sheet.close(); toast(`${r.queued} kishiga yuborilmoqda`); A.sys = null; adminLoad();
       }) }, "Yuborish") });
+  }
+
+  /* ---------------------------------------------------------------- prices and limits */
+  const num = (v) => { const t = String(v).trim().replace(/\s+/g, ""); return t === "" ? null : Number(t); };
+  const numInput = (value, ph) => h("input", { class: "input", type: "text", inputmode: "numeric", value: value == null ? "" : String(value), placeholder: ph || "" });
+  async function pricingSheet() {
+    let t;
+    try { t = await api("GET", "/admin/pricing"); } catch { return; }
+    const ref = { plans: {}, kinds: {}, disc: {} };
+    const planBlocks = t.plans.map((p) => {
+      const price = p.editable_price ? numInput(p.price) : null;
+      const bots = numInput(p.max_bots, "cheksiz"), users = numInput(p.user_cap, "cheksiz"), bc = numInput(p.broadcasts, "cheksiz");
+      ref.plans[p.code] = { price, bots, users, bc };
+      return h("div", { class: "section" }, h("h3", { text: p.title }),
+        price ? field("Narx (so‘m/oy)", price, `Standart: ${money(p.default.price)}`) : null,
+        field("Botlar soni", bots, "Bo‘sh = cheksiz"), field("Bot uchun foydalanuvchi", users, "Bo‘sh = cheksiz"), field("Oyiga broadcast (bot uchun)", bc, "Bo‘sh = cheksiz"));
+    });
+    const kindFields = t.kind_prices.map((k) => { const i = numInput(k.price); ref.kinds[k.kind] = i; return field(k.title, i, `Standart: ${money(k.default)}`); });
+    const d3 = numInput(t.discount["3"]), d12 = numInput(t.discount["12"]);
+    const sheet = openSheet({ title: "Narx va limitlar", body: [...planBlocks, h("div", { class: "section" }, h("h3", { text: "Alohida bot narxi (oyiga)" }), ...kindFields),
+      h("div", { class: "section" }, h("h3", { text: "Chegirma (%)" }), field("3 oy", d3), field("12 oy", d12)),
+      h("p", { class: "hint", text: "O‘zgarish darhol kuchga kiradi. Mavjud to‘lovlar va allaqachon yoqilgan tariflar o‘zgarmaydi." })],
+      foot: h("div", { style: "display:grid;gap:8px;width:100%" },
+        h("button", { class: "btn", onClick: (e) => guarded(e.currentTarget, async () => {
+          const plans = {};
+          for (const [code, r] of Object.entries(ref.plans)) {
+            plans[code] = { max_bots: num(r.bots.value), user_cap: num(r.users.value), broadcasts: num(r.bc.value) };
+            if (r.price) plans[code].price = num(r.price.value);
+          }
+          const kind_prices = Object.fromEntries(Object.entries(ref.kinds).map(([k, i]) => [k, num(i.value)]));
+          await api("PUT", "/admin/pricing", { plans, kind_prices, discount: { "3": num(d3.value), "12": num(d12.value) } });
+          sheet.close(); toast("Saqlandi"); A.sys = null; adminLoad();
+        }) }, "Saqlash"),
+        h("button", { class: "btn ghost", onClick: (e) => guarded(e.currentTarget, async () => {
+          if (!confirm("Barcha narx va limitlar standart holatga qaytariladi. Davom etasizmi?")) return;
+          await api("POST", "/admin/pricing/reset"); sheet.close(); toast("Standart holatga qaytdi"); A.sys = null; adminLoad();
+        }) }, "Standartga qaytarish")) });
+  }
+
+  /* ---------------------------------------------------------------- promo codes */
+  const PROMO_STATE = { live: "🟢 Faol", off: "⏸ O‘chirilgan", expired: "⌛ Muddati tugagan", full: "🔒 Limit tugagan" };
+  async function promoSheet() {
+    let items;
+    try { items = (await api("GET", "/admin/promos")).items; } catch { return; }
+    let mode = "percent";
+    const value = numInput("", "Masalan, 20"), uses = numInput("", "cheksiz"), days = numInput("", "muddatsiz"), code = h("input", { class: "input", placeholder: "Bo‘sh = avtomatik", maxlength: "32" }), note = h("input", { class: "input", placeholder: "Ixtiyoriy", maxlength: "120" });
+    const list = items.length ? items.map((p) => h("div", { class: "row static" }, h("div", { class: "grow" }, h("b", { text: `${p.code} · ${p.label}` }),
+      h("small", { text: `${PROMO_STATE[p.state]} · ${p.used}${p.max_uses ? ` / ${p.max_uses}` : ""} marta${p.expires_at ? ` · ${dd(p.expires_at)} gacha` : ""}${p.note ? ` · ${p.note}` : ""}` })),
+      h("button", { class: "btn ghost small", onClick: (e) => guarded(e.currentTarget, async () => { await api("POST", `/admin/promos/${p.id}/active`, { active: !p.active }); sheet.close(); promoSheet(); }) }, p.active ? "O‘chirish" : "Yoqish"))) : [empty("Hali promo-kod yo‘q.")];
+    const sheet = openSheet({ title: "Promo-kodlar", body: [
+      h("div", { class: "section" }, h("h3", { text: "Kodlar" }), ...list),
+      h("div", { class: "section" }, h("h3", { text: "Yangi kod" }),
+        field("Turi", segmented([["percent", "Foiz"], ["amount", "Summa"]], mode, (v) => { mode = v; value.placeholder = v === "percent" ? "Masalan, 20" : "Masalan, 10000"; })),
+        field("Qiymat", value, "Foiz: 1–90. Summa: so‘mda."), field("Necha marta", uses), field("Necha kun amal qiladi", days), field("Kod", code), field("Izoh", note),
+        h("button", { class: "btn", onClick: (e) => guarded(e.currentTarget, async () => {
+          const v = num(value.value);
+          if (!v) { toast("Qiymatni kiriting"); return; }
+          const r = await api("POST", "/admin/promos", { code: code.value.trim() || null, percent: mode === "percent" ? v : null, amount: mode === "amount" ? v : null, max_uses: num(uses.value), days: num(days.value), note: note.value.trim() || null });
+          toast(`Kod: ${r.code}`); sheet.close(); promoSheet();
+        }) }, "Yaratish"))] });
   }
   return { adminPage, adminLoad };
 }

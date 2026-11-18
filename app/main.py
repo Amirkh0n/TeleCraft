@@ -135,6 +135,12 @@ async def on_startup():
     paid_task = asyncio.create_task(paid_loop())
     global plans_task
     plans_task = asyncio.create_task(plans_loop(lambda: constructor_application.bot if constructor_application else None))
+    try:
+        from core import pricing
+        async with AsyncSessionLocal() as session:
+            await pricing.load(session)
+    except Exception:
+        logger.exception("Could not load the pricing override; using the defaults")
     from core import alerts
     alerts.configure(lambda: constructor_application.bot if constructor_application else None)
     if settings.HEALTH_ENABLED:

@@ -13,6 +13,10 @@ from constructor.flows.actions import handle_action_text, handle_action_link, ha
 async def messages(update, context):
     state = context.user_data.get('state')
 
+    if state == states.WAITING_FOR_PROMO:
+        from constructor.flows.plans import promo_text
+        await promo_text(update, context)
+        return
     if state == states.WAITING_FOR_PLAN_RECEIPT:
         from constructor.flows.plans import receipt_text
         await receipt_text(update, context)

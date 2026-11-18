@@ -52,6 +52,7 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(plx.make_payment, pattern=r"^plx:(pm:\w+|bm:\d+|bn:\d+:\w+):\d+$"))
     app.add_handler(CallbackQueryHandler(plx.pick_bot_kind_months, pattern=r"^plx:bk:\d+:\w+$"))
     app.add_handler(CallbackQueryHandler(plx.cancel, pattern=r"^plx:x:\d+$"))
+    app.add_handler(CallbackQueryHandler(plx.ask_promo, pattern=r"^plx:pr:\d+$"))
     app.add_handler(CallbackQueryHandler(plx.decide, pattern=r"^pla:(ok|no):\d+$"))
     # Anchored new-style callbacks go first: the legacy patterns below are unanchored substrings.
     app.add_handler(CallbackQueryHandler(screens.show_settings, pattern=r"^scr:open:\d+$"))

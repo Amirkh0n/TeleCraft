@@ -258,7 +258,7 @@ async def create_payment(session, user: User, *, plan: str | None = None, bot_id
 
 def describe(pay: PlanPayment) -> str:
     what = (f"{PLANS[pay.plan].title} tarifi" if pay.target == TARGET_PLAN else f"{KIND_TITLES.get(pay.kind, pay.kind)} uchun alohida to‘lov")
-    return f"{what} · {pay.months} oy"
+    return f"{what} · {pay.months} oy" + (f" · promo {pay.promo_code}" if pay.promo_code else "")
 
 
 def money(n: int) -> str:
@@ -297,6 +297,8 @@ async def decide(session, payment_id: int, admin_tg_id: int, approve: bool, now:
     pay = await session.get(PlanPayment, payment_id, populate_existing=True)
     if approve:
         await _apply(session, pay, now)
+        from core import promo
+        await promo.consume(session, pay)
     await session.commit()
     return pay
 

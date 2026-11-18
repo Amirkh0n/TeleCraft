@@ -11,7 +11,7 @@ from telegram.ext import ContextTypes
 from constructor import states
 from constructor.session import ensure_constructor_user, save_builder_session
 from constructor.ui import show_screen
-from core import plans
+from core import plans, promo
 from core.config import settings
 from core.database import AsyncSessionLocal
 from core.logger import get_logger
@@ -184,16 +184,53 @@ async def make_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await deny(update, str(exc) if isinstance(exc, PlanError) else "So‘rov noto‘g‘ri.")
     await save_builder_session(user.id, context, pending_state=states.WAITING_FOR_PLAN_RECEIPT,
                                draft={"flow": "plan_receipt", "id": pay.id})
+    await _show_payment(update, pay)
+
+
+async def _show_payment(update: Update, pay: PlanPayment, *, edit: bool = True):
     if settings.PLAN_CARD_NUMBER:
         card = (f"💳 Karta: <code>{html.escape(settings.PLAN_CARD_NUMBER)}</code>\n"
                 + (f"👤 Egasi: {html.escape(settings.PLAN_CARD_HOLDER)}\n" if settings.PLAN_CARD_HOLDER else ""))
     else:
         card = "⚠️ To‘lov rekvizitlari hali sozlanmagan. Admin bilan bog‘laning.\n"
+    amount = f"<b>{plans.money(pay.amount)}</b>"
+    if pay.discount:
+        amount = f"<s>{plans.money(pay.amount + pay.discount)}</s> → {amount} (promo <code>{html.escape(pay.promo_code or '')}</code>)"
     text = (f"💳 <b>To‘lov #{pay.id}</b>\n{plans.describe(pay)}\n\n"
-            f"Summa: <b>{plans.money(pay.amount)}</b>\n{card}\n"
+            f"Summa: {amount}\n{card}\n"
             "To‘lovni amalga oshiring va <b>chek rasmini (skrinshot)</b> shu chatga yuboring. "
             "Admin tekshirgach, tarif yoqiladi.")
-    await show_screen(update, text, [[Btn("❌ Bekor qilish", callback_data=f"plx:x:{pay.id}")]])
+    await show_screen(update, text, [[Btn("🎟 Promo-kod", callback_data=f"plx:pr:{pay.id}")],
+                                     [Btn("❌ Bekor qilish", callback_data=f"plx:x:{pay.id}")]], edit=edit)
+
+
+async def ask_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    tg = update.effective_user
+    user = await ensure_constructor_user(tg.id, tg.full_name)
+    pay_id = int(query.data.split(":")[2])
+    await save_builder_session(user.id, context, pending_state=states.WAITING_FOR_PROMO, draft={"flow": "plan_receipt", "id": pay_id})
+    await query.message.reply_text("🎟 Promo-kodni yuboring (bekor qilish: /cancel).")
+
+
+async def promo_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """The owner typed a promo code while paying."""
+    tg = update.effective_user
+    user = await ensure_constructor_user(tg.id, tg.full_name)
+    pay_id = (context.user_data.get("draft") or {}).get("id") or 0
+    try:
+        async with AsyncSessionLocal() as session:
+            pay = await promo.apply_to_payment(session, pay_id, user.id, update.message.text or "")
+            amount = pay.amount
+    except PlanError as exc:
+        await update.message.reply_text(f"❌ {exc}\nBoshqa kod yuboring yoki chek rasmini yuboring.")
+        await save_builder_session(user.id, context, pending_state=states.WAITING_FOR_PLAN_RECEIPT, draft={"flow": "plan_receipt", "id": pay_id})
+        return
+    await save_builder_session(user.id, context, pending_state=states.WAITING_FOR_PLAN_RECEIPT, draft={"flow": "plan_receipt", "id": pay_id})
+    async with AsyncSessionLocal() as session:
+        pay = await session.get(PlanPayment, pay_id)
+        await _show_payment(update, pay, edit=False)
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
