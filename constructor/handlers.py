@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, Update, Bot as TgBot
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, Bot as TgBot
 from telegram.ext import ContextTypes
 from sqlalchemy import select
 
@@ -248,8 +248,9 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ <b>{bot_info.first_name or bot_info.username}</b> qo‘shildi.\n{hook_message}\n\n"
         "<b>2/3 — Bosh xabar</b>\n\n"
         "Foydalanuvchi child botga <code>/start</code> yozganda qanday xabar ko‘rsin? "
-        "Matnni hozir yuboring.",
+        "Matnni hozir yuboring yoki tayyor shablon tanlang.",
         parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✨ Tayyor shablon tanlash", callback_data="tpl:list")]]),
     )
 
 
