@@ -42,7 +42,8 @@ def group_rows(name: str, bot) -> tuple[str, list[list[Btn]]] | None:
             [Btn("🔒 Majburiy obuna", callback_data="sub:home")]]
     if name == "settings":
         rows = [[Btn("👮 Adminlar", callback_data="adm:home"), Btn("💳 Tarif", callback_data="plx:home")],
-                [Btn("🔀 Bot rejimini almashtirish", callback_data=f"grp:modes:{bot.id}")]]
+                [Btn("🔀 Bot rejimini almashtirish", callback_data=f"grp:modes:{bot.id}")],
+                [Btn("💾 Zaxira nusxa", callback_data=f"bkp:home:{bot.id}")]]
         return "⚙️ Sozlamalar", rows
     if name == "modes":
         rows, row = [], []

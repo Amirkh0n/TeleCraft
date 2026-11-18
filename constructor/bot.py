@@ -124,7 +124,11 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(handle_back, pattern=r"^back_to_"))
     app.add_handler(CallbackQueryHandler(cancel_action, pattern="cancel"))
     from constructor.flows.panel import show_group
-    from constructor.flows import templates as tplx
+    from constructor.flows import templates as tplx, backup_bot as bkp
+    app.add_handler(CallbackQueryHandler(bkp.home, pattern=r"^bkp:home:"))
+    app.add_handler(CallbackQueryHandler(bkp.export, pattern=r"^bkp:out:"))
+    app.add_handler(CallbackQueryHandler(bkp.ask_file, pattern=r"^bkp:in:"))
+    app.add_handler(CallbackQueryHandler(bkp.go, pattern=r"^bkp:go:"))
     app.add_handler(CallbackQueryHandler(tplx.show_list, pattern=r"^tpl:list"))
     app.add_handler(CallbackQueryHandler(tplx.preview, pattern=r"^tpl:v:"))
     app.add_handler(CallbackQueryHandler(tplx.go, pattern=r"^tpl:go:"))

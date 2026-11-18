@@ -235,6 +235,10 @@ async def handle_media_message(update: Update, context: ContextTypes.DEFAULT_TYP
         from constructor.flows.plans import handle_receipt
         await handle_receipt(update, context)
         return
+    if state == "waiting_for_bot_restore":
+        from constructor.flows.backup_bot import handle_file
+        await handle_file(update, context)
+        return
     if state == WAITING_FOR_BC_CONTENT:
         from constructor.flows.audience import handle_broadcast_media
         await handle_broadcast_media(update, context)

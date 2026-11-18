@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 from telegram.error import Forbidden
 
-from core import plans
+from core import alerts, plans
 from core.logger import get_logger
 from engine import booking, cinema, course, forms, join, paid, quiz, shop
 from engine.audience import set_blocked, touch_user
@@ -150,8 +150,9 @@ async def route_update(bot, update, session, *, client=None):
             except Exception:
                 logger.exception("could not mark user as blocked")
                 await session.rollback()
-    except Exception:
+    except Exception as exc:
         logger.exception("bot_id=%s: failed to process update %s", bot.id, update.get("update_id"))
+        alerts.record_failure(bot.id, exc)
         await session.rollback()
 
 

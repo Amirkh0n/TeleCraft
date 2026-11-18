@@ -70,6 +70,7 @@ constructor_application = None
 reminder_task = None
 course_task = None
 backup_task = None
+health_task = None
 join_task = None
 paid_task = None
 plans_task = None
@@ -134,6 +135,12 @@ async def on_startup():
     paid_task = asyncio.create_task(paid_loop())
     global plans_task
     plans_task = asyncio.create_task(plans_loop(lambda: constructor_application.bot if constructor_application else None))
+    from core import alerts
+    alerts.configure(lambda: constructor_application.bot if constructor_application else None)
+    if settings.HEALTH_ENABLED:
+        from core.health import health_loop
+        global health_task
+        health_task = asyncio.create_task(health_loop())
     if settings.BACKUP_ENABLED:
         global backup_task
         backup_task = asyncio.create_task(
@@ -149,6 +156,8 @@ async def on_shutdown():
         course_task.cancel()
     if backup_task:
         backup_task.cancel()
+    if health_task:
+        health_task.cancel()
     if join_task:
         join_task.cancel()
     if paid_task:
@@ -329,6 +338,16 @@ async def home_head():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/health/deep")
+async def health_deep():
+    """For an external monitor (UptimeRobot): 503 when the database does not answer."""
+    from core.health import ping
+    seconds = await ping()
+    if seconds is None:
+        return JSONResponse(status_code=503, content={"status": "database_down"})
+    return {"status": "ok", "db_ms": round(seconds * 1000)}
 
 
 @app.get("/metrics")
