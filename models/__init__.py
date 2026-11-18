@@ -27,5 +27,5 @@ from .schemas import AnalyticsEvent as SchemaAnalyticsEvent, BotStats as SchemaB
 from .join import JoinChat, JoinLink, JoinRequest, JoinSettings  # noqa: F401
 
 from .paid import PaidChannel, PaidPayment, PaidPlan, PaidPlanChannel, PaidPromo, PaidSettings, PaidSub  # noqa: F401
-from .plans import AccountPlan, AdminLog, BotLicense, PlanNotice, PlanPayment  # noqa: F401
+from .plans import AccountPlan, AdminLog, AppSetting, BotLicense, PlanNotice, PlanPayment, PromoCode, PromoUse  # noqa: F401
 from .referrals import Referral  # noqa: F401

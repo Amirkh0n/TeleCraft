@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram.error import TelegramError
 
-from core import plans
+from core import plans, pricing, promo
 from core.backup import send_backup
 from core.config import settings
 from core.database import engine
@@ -19,7 +19,7 @@ from engine.booking_time import as_utc, utcnow
 from engine.telegram_client import get_client
 from models.audience import BotUser
 from models.bots import Bot
-from models.plans import AccountPlan, AdminLog, BotLicense, PlanPayment, PAY_APPROVED, PAY_PENDING, PAY_REJECTED
+from models.plans import AccountPlan, AdminLog, BotLicense, PlanPayment, PromoCode, PAY_APPROVED, PAY_PENDING, PAY_REJECTED
 from models.users import User
 from webapp.auth import current_user, get_session
 
@@ -359,3 +359,86 @@ async def backup_now(admin: User = Depends(admin_user), session: AsyncSession = 
         raise HTTPException(status_code=409, detail="Faylni yuborib bo‘lmadi. Asosiy botga /start yuboring.")
     await log(session, admin, "backup")
     return {"sent": sent}
+
+
+# ------------------------------------------------------------------ prices and limits
+
+class PricingIn(BaseModel):
+    plans: dict = Field(default_factory=dict)
+    kind_prices: dict = Field(default_factory=dict)
+    discount: dict = Field(default_factory=dict)
+
+
+@router.get("/pricing")
+async def get_pricing(admin: User = Depends(admin_user)):
+    return pricing.table()
+
+
+@router.put("/pricing")
+async def put_pricing(body: PricingIn, admin: User = Depends(admin_user), session: AsyncSession = Depends(get_session)):
+    try:
+        await pricing.save(session, body.model_dump())
+    except pricing.PricingError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    await log(session, admin, "pricing", None, ", ".join(sorted({*body.plans, *body.kind_prices, *(f"{m}oy" for m in body.discount)})))
+    return pricing.table()
+
+
+@router.post("/pricing/reset")
+async def reset_pricing(admin: User = Depends(admin_user), session: AsyncSession = Depends(get_session)):
+    await pricing.reset(session)
+    await log(session, admin, "pricing_reset")
+    return pricing.table()
+
+
+# ------------------------------------------------------------------ promo codes
+
+def promo_out(p: PromoCode) -> dict:
+    now = utcnow()
+    expired = p.expires_at is not None and as_utc(p.expires_at) < now
+    full = p.max_uses is not None and p.used_count >= p.max_uses
+    return {"id": p.id, "code": p.code, "label": promo.label(p), "percent": p.percent, "amount": p.amount, "max_uses": p.max_uses, "used": p.used_count,
+            "expires_at": p.expires_at.isoformat() if p.expires_at else None, "active": p.active, "note": p.note,
+            "state": "off" if not p.active else "expired" if expired else "full" if full else "live"}
+
+
+class PromoIn(BaseModel):
+    code: str | None = Field(default=None, max_length=32)
+    percent: int | None = Field(default=None, ge=1, le=90)
+    amount: int | None = Field(default=None, ge=1000, le=10_000_000)
+    max_uses: int | None = Field(default=None, ge=1, le=1_000_000)
+    days: int | None = Field(default=None, ge=1, le=3650)
+    note: str | None = Field(default=None, max_length=120)
+
+
+@router.get("/promos")
+async def list_promos(admin: User = Depends(admin_user), session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(PromoCode).order_by(PromoCode.id.desc()).limit(200))).scalars().all()
+    return {"items": [promo_out(p) for p in rows]}
+
+
+@router.post("/promos", status_code=201)
+async def create_promo(body: PromoIn, admin: User = Depends(admin_user), session: AsyncSession = Depends(get_session)):
+    try:
+        p = await promo.create(session, **body.model_dump())
+    except plans.PlanError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    out = promo_out(p)
+    await log(session, admin, "promo_new", None, f"{out['code']} {out['label']}")
+    return out
+
+
+class PromoActiveIn(BaseModel):
+    active: bool
+
+
+@router.post("/promos/{promo_id}/active")
+async def set_promo_active(promo_id: int, body: PromoActiveIn, admin: User = Depends(admin_user), session: AsyncSession = Depends(get_session)):
+    p = await session.get(PromoCode, promo_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail="Kod topilmadi.")
+    p.active = body.active
+    await session.commit()
+    out = promo_out(p)
+    await log(session, admin, "promo_on" if body.active else "promo_off", None, out["code"])
+    return out

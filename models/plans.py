@@ -1,7 +1,7 @@
 """Platform pricing: an owner's account plan, per-bot licences, payments and notice markers."""
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -51,6 +51,8 @@ class PlanPayment(Base):
     decided_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    promo_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    discount: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)  # amount is already reduced by this
 
 
 class PlanNotice(Base):
@@ -71,4 +73,41 @@ class AdminLog(Base):
     action: Mapped[str] = mapped_column(String(40), nullable=False)
     target_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     detail: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AppSetting(Base):
+    """Settings the admins edit in the Mini App (prices and limits), stored as JSON by key."""
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class PromoCode(Base):
+    """A discount code the owner types while paying: a percentage or a fixed amount, with an optional cap and expiry."""
+    __tablename__ = "promo_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    used_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PromoUse(Base):
+    """One approved payment that used a code. A person can use a code once."""
+    __tablename__ = "promo_uses"
+    __table_args__ = (UniqueConstraint("promo_id", "user_id", name="uq_promo_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    promo_id: Mapped[int] = mapped_column(ForeignKey("promo_codes.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("plan_payments.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

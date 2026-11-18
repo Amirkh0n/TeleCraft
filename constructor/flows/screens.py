@@ -231,7 +231,7 @@ async def _transfer(update: Update, context: ContextTypes.DEFAULT_TYPE, bot):
 
 async def handle_media_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state = context.user_data.get("state")
-    if state == "waiting_for_plan_receipt":
+    if state in ("waiting_for_plan_receipt", "waiting_for_promo"):
         from constructor.flows.plans import handle_receipt
         await handle_receipt(update, context)
         return
