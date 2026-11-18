@@ -123,6 +123,8 @@ def build_constructor_application(token: str):
     app.add_handler(CallbackQueryHandler(action_admin_click, pattern="action_admin"))
     app.add_handler(CallbackQueryHandler(handle_back, pattern=r"^back_to_"))
     app.add_handler(CallbackQueryHandler(cancel_action, pattern="cancel"))
+    from constructor.flows.panel import show_group
+    app.add_handler(CallbackQueryHandler(show_group, pattern=r"^grp:"))
     app.add_handler(CallbackQueryHandler(open_bot))
     app.add_handler(MessageHandler(
         filters.PHOTO | filters.VIDEO | filters.ANIMATION | filters.AUDIO | filters.VOICE | filters.Document.ALL,

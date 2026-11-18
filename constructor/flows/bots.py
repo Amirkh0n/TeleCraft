@@ -97,28 +97,8 @@ async def open_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id: i
         f"Bosh xabar: {start_state}\n"
         "Kerakli bo‘limni tanlang."
     )
-    keyboard = [
-        [InlineKeyboardButton("📝 Bosh xabar", callback_data="edit_start_message")],
-        [InlineKeyboardButton("📂 Menyular", callback_data="menus")],
-        *_editor_row(),
-        [InlineKeyboardButton("🔘 Tugmalar", callback_data="start_buttons")],
-        [InlineKeyboardButton("📋 Formalar", callback_data="frm:list")],
-        [InlineKeyboardButton("👥 Auditoriya", callback_data="aud:home"),
-         InlineKeyboardButton("📣 Broadcast", callback_data="bc:home")],
-        [InlineKeyboardButton("🔒 Majburiy obuna", callback_data="sub:home")],
-        [InlineKeyboardButton("🎬 Kino bot", callback_data="cin:home"),
-         InlineKeyboardButton("📅 Bron bot", callback_data="bkc:home")],
-        [InlineKeyboardButton("🧠 Test bot", callback_data="qzc:home"),
-         InlineKeyboardButton("🎓 Kurs bot", callback_data="crsc:home")],
-        [InlineKeyboardButton("🛒 Do‘kon bot", callback_data="shpc:home"),
-         InlineKeyboardButton("📨 Ariza bot", callback_data="jnpc:home")],
-        [InlineKeyboardButton("💎 Pullik kanal", callback_data="pdc:home"),
-         InlineKeyboardButton("👮 Adminlar", callback_data="adm:home")],
-        [InlineKeyboardButton("🧪 Sinab ko‘rish", callback_data="test_bot")],
-        [InlineKeyboardButton("📊 Holat", callback_data="bot_status"),
-         InlineKeyboardButton("💳 Tarif", callback_data="plx:home")],
-        [InlineKeyboardButton("⬅️ Botlarim", callback_data="back_to_bots")],
-    ]
+    from constructor.flows.panel import top_rows
+    keyboard = top_rows(bot, _editor_row())
     await show_screen(update, text, keyboard, edit=bool(update.callback_query))
 
 
