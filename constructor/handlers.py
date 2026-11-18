@@ -349,12 +349,28 @@ async def show_bot_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state = "🟢 Ulangan" if bot.webhook_set else "🔴 Ulanmagan"
     start_state = "✅ Tayyor" if start_menu and start_menu.message_text else "⚠️ Sozlanmagan"
     username = f"@{bot.username}" if bot.username else bot.name
-    await show_screen(
-        update,
-        f"📊 <b>{bot.name}</b>\n\n"
-        f"Bot: {username}\nWebhook: {state}\nBosh xabar: {start_state}",
-        [[InlineKeyboardButton("⬅️ Bot boshqaruvi", callback_data=f"bot_{bot.id}")]],
-    )
+    from core import plans
+    from engine import owner_stats
+    async with AsyncSessionLocal() as session:
+        limits = await plans.bot_limits(session, bot)
+        data = await owner_stats.overview(session, bot, limits)
+    text = (f"📊 <b>{bot.name}</b>\n{username} · {state} · bosh xabar: {start_state}\n\n"
+            f"👥 Foydalanuvchilar: <b>{data['total']}</b>"
+            + (f" / {data['cap']['limit']}" if data["cap"] else "")
+            + f"\n🆕 Yangi: bugun <b>{data['new_24h']}</b> · hafta <b>{data['new_7d']}</b> · oy <b>{data['new_30d']}</b>"
+            f"\n🔥 Faol: 24 soat <b>{data['active_24h']}</b> · 7 kun <b>{data['active_7d']}</b>"
+            f"\n📈 14 kun: <code>{owner_stats.spark([d['new'] for d in data['daily']])}</code>")
+    if data["top_buttons"]:
+        text += "\n\n🔘 <b>Ko‘p bosilgan tugmalar (30 kun)</b>\n" + "\n".join(f"{i}. {b['text']} — {b['clicks']}" for i, b in enumerate(data["top_buttons"][:5], 1))
+    if data["broadcasts"]:
+        b = data["broadcasts"][0]
+        text += f"\n\n📣 Oxirgi broadcast: {b['sent']}/{b['total']} yetdi"
+    rows = []
+    if data["cap"] and data["cap"]["used"] >= data["cap"]["limit"] * 0.8:
+        text += f"\n\n⚠️ Limit {data['cap']['limit']} ta foydalanuvchi. Yangi foydalanuvchilar qabul qilinmay qolishi mumkin."
+        rows.append([InlineKeyboardButton("🚀 Limitni oshirish", callback_data="plx:home")])
+    rows.append([InlineKeyboardButton("⬅️ Bot boshqaruvi", callback_data=f"bot_{bot.id}")])
+    await show_screen(update, text, rows)
 
 
 async def test_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):

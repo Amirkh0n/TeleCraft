@@ -12,8 +12,9 @@ from telegram.error import Forbidden, TelegramError
 
 from constructor.flows.forms import build_csv
 from constructor.flows.screens import reupload
+from core import plans
 from core.logger import get_logger
-from engine import audience as audience_engine
+from engine import audience as audience_engine, owner_stats
 from engine.render import MEDIA_TYPES, parse_media_value
 from engine.telegram_client import get_client
 from models.admin_links import AdminLink
@@ -235,7 +236,8 @@ async def get_bot(bot_id: int, user: User = Depends(current_user), session: Asyn
 @router.get("/bots/{bot_id}/stats")
 async def bot_stats(bot_id: int, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     bot = await owned_bot(session, user, bot_id)
-    return await audience_engine.stats(session, bot.id)
+    limits = await plans.bot_limits(session, bot)
+    return await owner_stats.overview(session, bot, limits)
 
 
 # ---------------------------------------------------------------- menus (screens)

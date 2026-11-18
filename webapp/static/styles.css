@@ -300,3 +300,10 @@ svg.i.back { transform: rotate(90deg); }
 
 .progress { height: 8px; border-radius: 99px; background: var(--cobalt-soft); overflow: hidden; margin: 8px 0; }
 .progress > div { height: 100%; background: var(--cobalt); border-radius: 99px; }
+
+.daily { display: flex; align-items: flex-end; gap: 4px; height: 84px; padding: 6px 2px 0; }
+.daily .col { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.daily .pillar { width: 100%; border-radius: 4px 4px 2px 2px; background: var(--cobalt); min-height: 2px; }
+.daily-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+.notice { border-radius: 14px; padding: 12px 14px; margin: 12px 0; background: var(--cobalt-soft); border: 1px solid var(--line); }
+.notice p { margin: 4px 0 0; color: var(--ink-2); font-size: 14px; }
