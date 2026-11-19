@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form as FormParam, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram.error import Forbidden, TelegramError
 
@@ -24,6 +24,7 @@ from models.buttons import Button
 from models.forms import FIELD_CHOICE, FIELD_TYPES, Form, FormField, FormSubmission
 from models.menus import Menu
 from models.user_sessions import UserSession
+from models.translations import ContentTranslation
 from models.users import User
 from webapp.auth import current_user, get_session
 from webapp.telegram_html import check_html
@@ -300,7 +301,11 @@ async def delete_menu(menu_id: int, user: User = Depends(current_user), session:
     for button in (await session.execute(select(Button).where(Button.menu_id == menu.id))).scalars().all():
         for action in (await session.execute(select(ButtonAction).where(ButtonAction.button_id == button.id))).scalars().all():
             await session.delete(action)
+        await session.execute(sa_delete(ContentTranslation).where(
+            ContentTranslation.entity.in_(("button_text", "action_text")), ContentTranslation.entity_id == button.id))
         await session.delete(button)
+    await session.execute(sa_delete(ContentTranslation).where(
+        ContentTranslation.entity == "menu_text", ContentTranslation.entity_id == menu.id))
     await session.delete(menu)
     await session.commit()
     return Response(status_code=204)
@@ -438,6 +443,8 @@ async def delete_button(button_id: int, user: User = Depends(current_user), sess
     button, _menu, _bot = await owned_button(session, user, button_id)
     for action in (await session.execute(select(ButtonAction).where(ButtonAction.button_id == button.id))).scalars().all():
         await session.delete(action)
+    await session.execute(sa_delete(ContentTranslation).where(
+        ContentTranslation.entity.in_(("button_text", "action_text")), ContentTranslation.entity_id == button.id))
     await session.delete(button)
     await session.commit()
     return Response(status_code=204)

@@ -14,6 +14,7 @@ from webapp.api import router as webapp_router
 from webapp.api_admin import router as webapp_admin_router
 from webapp.api_audience import router as webapp_audience_router
 from webapp.api_forms import router as webapp_forms_router
+from webapp.api_langs import router as webapp_langs_router
 from webapp.api_modes import router as webapp_modes_router
 from core.logger import logger
 from core.rate_limit import rate_limit_middleware
@@ -381,6 +382,7 @@ app.include_router(webapp_audience_router)
 app.include_router(webapp_modes_router)
 app.include_router(webapp_admin_router)
 app.include_router(webapp_forms_router)
+app.include_router(webapp_langs_router)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "webapp", "static")
 
 

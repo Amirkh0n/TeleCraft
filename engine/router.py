@@ -9,7 +9,7 @@ from telegram.error import Forbidden
 
 from core import alerts, plans
 from core.logger import get_logger
-from engine import booking, cinema, course, forms, join, paid, quiz, shop
+from engine import i18n, booking, cinema, course, forms, join, paid, quiz, shop
 from engine.audience import set_blocked, touch_user
 from engine.actions import execute_action, get_user_session
 from engine.resolver import (
@@ -175,6 +175,15 @@ async def _on_callback(bot, callback, session, tg):
         return
     if not await subscription.gate(tg, bot, user_id, session):
         return
+    data = callback.get("data") or ""
+    if data.startswith(i18n.LANG_CALLBACK) and i18n.multilingual(bot):
+        code = data[len(i18n.LANG_CALLBACK):]
+        if code == "pick":
+            await i18n.send_picker(tg, bot, user_id)
+        elif await i18n.set_lang(session, bot, user_id, code):
+            action_type, value = await handle_start(bot, callback, session)
+            await execute_action(bot, action_type, value, user_id, session, tg=tg)
+        return
     user_session = await get_user_session(session, bot.id, user_id)
     if forms.is_active(user_session):
         # Tapping an old inline button while filling a form means "leave the form".
@@ -200,6 +209,12 @@ async def _on_message(bot, message, session, tg):
         return
     user_session = await get_user_session(session, bot.id, user_id)
 
+    if text and i18n.multilingual(bot) and (
+        _command(text) == "/language" or (_command(text) == "/start" and not await i18n.has_chosen(session, bot, user_id))
+    ):
+        await i18n.send_picker(tg, bot, user_id)
+        return
+
     if text and _command(text) == "/start":
         if forms.is_active(user_session):
             forms.clear_state(user_session)
@@ -217,7 +232,7 @@ async def _on_message(bot, message, session, tg):
         if action_type:
             await execute_action(bot, action_type, value, user_id, session, tg=tg, user_session=user_session)
         else:
-            await tg.send_message(chat_id=user_id, text=HINT_TEXT)
+            await tg.send_message(chat_id=user_id, text=i18n.s(await i18n.user_lang(session, bot, user_id), "hint"))
     elif message.get("contact"):
         await _on_shared(bot, "contact", message, user_session, session, tg)
     elif message.get("location"):

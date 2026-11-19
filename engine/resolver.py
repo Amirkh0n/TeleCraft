@@ -1,7 +1,8 @@
 """Decide WHAT an incoming update means (an action), without sending anything."""
 from sqlalchemy import select
 
-from engine import clicks
+from engine import clicks, i18n
+from models.audience import BotUser
 from models.button_actions import ActionType, ButtonAction
 from models.buttons import Button
 from models.codes import Code
@@ -29,6 +30,14 @@ async def _action_for_button(session, bot_id, button_id, user_id=None):
     if action is None:
         return None, None
     result = (action.action_type, action.value)
+    if action.action_type == ActionType.text and user_id is not None:
+        lang = (await session.execute(
+            select(BotUser.lang).where(BotUser.bot_id == bot_id, BotUser.tg_user_id == user_id)
+        )).scalar_one_or_none()
+        if lang and lang != i18n.BASE:
+            translated = (await i18n.load(session, bot_id, lang, "action_text", [button_id])).get(button_id)
+            if translated:
+                result = (action.action_type, translated)
     await clicks.record(session, bot_id, user_id, button_id)
     return result
 
@@ -53,6 +62,13 @@ async def _reply_button_action(session, bot_id, menu_id, text, user_id=None):
         .order_by(Button.position, Button.id)
     )
     button_id = result.scalars().first()
+    if button_id is None and user_id is not None:
+        lang = (await session.execute(
+            select(BotUser.lang).where(BotUser.bot_id == bot_id, BotUser.tg_user_id == user_id)
+        )).scalar_one_or_none()
+        if lang and lang != i18n.BASE:
+            ids = select(Button.id).where(Button.menu_id == menu_id, Button.kind == "normal")
+            button_id = await i18n.translated_button_id(session, bot_id, lang, menu_id, text, ids)
     if button_id is None:
         return None, None
     return await _action_for_button(session, bot_id, button_id, user_id)

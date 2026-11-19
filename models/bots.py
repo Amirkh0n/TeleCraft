@@ -70,6 +70,9 @@ class Bot(Base):
     movie_channel_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     movie_channel_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Extra languages of the bot's content, comma separated ("ru,en"); the base language is Uzbek.
+    languages: Mapped[str] = mapped_column(String(32), default="", server_default="", nullable=False)
+
     # Relationship
     owner = relationship("User", backref="bots")
 

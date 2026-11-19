@@ -72,13 +72,14 @@ def _chunk(items: list, size: int) -> list[list]:
     return [items[i:i + size] for i in range(0, len(items), size)]
 
 
-def build_markup(menu, buttons):
+def build_markup(menu, buttons, tr=None):
     """Keyboard for a screen, or None if it has no buttons."""
     columns = max(1, min(int(menu.columns or 1), 2))
+    labels = (tr or {}).get("buttons") or {}
     if menu.keyboard_mode == "reply":
         keys = [
             KeyboardButton(
-                button.text,
+                labels.get(button.id, button.text),
                 request_contact=button.kind == "contact",
                 request_location=button.kind == "location",
             )
@@ -88,16 +89,19 @@ def build_markup(menu, buttons):
 
     # Contact/location buttons only exist on reply keyboards; inline ones have no meaning here.
     keys = [
-        InlineKeyboardButton(button.text, callback_data=str(button.id))
+        InlineKeyboardButton(labels.get(button.id, button.text), callback_data=str(button.id))
         for button in buttons
         if button.kind == "normal"
     ]
-    return InlineKeyboardMarkup(_chunk(keys, columns)) if keys else None
+    rows = _chunk(keys, columns)
+    if (tr or {}).get("lang_button"):
+        rows.append([InlineKeyboardButton("🌐", callback_data="lang:pick")])
+    return InlineKeyboardMarkup(rows) if rows else None
 
 
-async def send_screen(tg, chat_id, menu, buttons, user_session) -> None:
+async def send_screen(tg, chat_id, menu, buttons, user_session, tr=None) -> None:
     """Show a menu to the user and keep ``user_session.reply_keyboard_active`` accurate."""
-    markup = build_markup(menu, buttons)
+    markup = build_markup(menu, buttons, tr)
     reply_was_active = bool(user_session.reply_keyboard_active)
 
     if reply_was_active and markup is None:
@@ -110,7 +114,7 @@ async def send_screen(tg, chat_id, menu, buttons, user_session) -> None:
         except Exception as exc:  # cosmetic; never block the screen itself
             logger.info("Could not clear reply keyboard: %s", exc)
 
-    text = menu.message_text
+    text = (tr or {}).get("menu") or menu.message_text
     media_ok = False
     if menu.media_type in MEDIA_TYPES and menu.media_file_id:
         if text and len(text) > CAPTION_LIMIT:
